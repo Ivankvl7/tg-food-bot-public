@@ -40,8 +40,3 @@ static_keyboard: dict = {
     'help_button': 'Помощь 🆘'
 }
 
-categories: dict = {
-    'rings': 'Кольца',
-    'earrings': 'Серьги',
-    'bracelets': 'Браслеты'
-}
