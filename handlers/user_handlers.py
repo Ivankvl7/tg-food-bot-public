@@ -31,14 +31,18 @@ async def process_catalog_button(callback: CallbackQuery):
 # browsing category1. I believe handling categoires should be processed with FSM
 @common_users_router.callback_query(Text(text=list(key for key in goods)))
 async def process_products_listing(callback: CallbackQuery):
-    user_id = callback.from_user.id
+    user_id: int = callback.from_user.id
     if user_id not in user_status:
         user_status[user_id] = dict()
-    user_status[user_id]['current_page'] = 0
-    current_page = user_status[user_id]['current_page']
-    user_status[user_id]['browsing_category'] = callback.data
+    user_status[user_id]['current_page']: int = 0
+    current_page: int = user_status[user_id]['current_page']
+    user_status[user_id]['browsing_category']: str = callback.data
+    browsing_category: str = user_status[user_id]['browsing_category']
     await callback.message.answer_photo(
-        caption='Product description',
+        caption='\n'.join(
+            [f"<b>{key}:</b> {value}" for key, value in
+             goods[browsing_category][current_page].items()]),
+        parse_mode='HTML',
         photo='https://eavf3cou74b.exactdn.com/wp-content/uploads/2021/09/21104001/How-to-Photograph-Jewelry-10-768x512.jpg?strip=all&lossy=1&ssl=1',
         reply_markup=keyboards.create_pagination_keyboard(page_num=current_page,
                                                           category=callback.data)
@@ -69,7 +73,10 @@ async def process_pagination_buttons(callback: CallbackQuery):
         media=InputMediaPhoto(media='https://media.istockphoto.com/id/954397602/photo/two-golden-sapphire-earr'
                                     'ings-with-small-diamonds.jpg?s=612x612&w=0&k=20&c=QxkA9ZCAQHDicBpV8g5As_0'
                                     '5tbPpaJqZoPvlfSTnQ78=',
-                              caption='Product description'))
+                              caption='\n'.join(
+                                  [f"<b>{key}:</b> {value}" for key, value in
+                                   goods[browsing_category][current_page].items()]),
+                              parse_mode='HTML'))
 
     await callback.message.edit_reply_markup(text='Product description',
                                              reply_markup=keyboards.create_pagination_keyboard(page_num=current_page,
