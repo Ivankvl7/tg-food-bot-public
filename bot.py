@@ -4,11 +4,19 @@ from config_data.config import load_config, Config
 from aiogram import Bot, Dispatcher
 from keyboards.set_menu import main_commands_menu
 from handlers import user_handlers
+import logging
+import redis
+from aiogram.fsm.storage.redis import Redis, RedisStorage
 
 
 # .env should be placed in the same directory as bot.py
 async def main():
+    logging.basicConfig(level=logging.INFO)
     path: str = os.getcwd() + '/.env'
+
+    # initializing redis
+    redis: Redis = Redis(host='localhost')
+    storage: RedisStorage = RedisStorage(redis=redis)
 
     # acquiring config, personal token and admin ids
     config: Config = load_config(path)
@@ -17,8 +25,7 @@ async def main():
 
     # initializing bot and dispatcher
     bot: Bot = Bot(token)
-    dp: Dispatcher = Dispatcher()
-
+    dp: Dispatcher = Dispatcher(storage=storage)
 
     # registering main menu commands in root dispatcher
     dp.startup.register(main_commands_menu)

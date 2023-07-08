@@ -2,7 +2,7 @@ from aiogram.utils.keyboard import KeyboardButton, ReplyKeyboardBuilder, InlineK
     ReplyKeyboardMarkup, InlineKeyboardMarkup
 from aiogram.types import CallbackQuery, Message
 from lexicon.lexicon_ru import static_keyboard, start_follow_up_menu
-from lexicon.LEXICON import pagination_buttons
+from lexicon.LEXICON import pagination_buttons, product_action_buttons
 from database.database import goods
 
 
@@ -34,21 +34,44 @@ def generate_follow_up_menu() -> InlineKeyboardMarkup:
 
 
 # generating pagination keyboard which depends on the current page num
-def create_pagination_keyboard(page_num: int, category: str):
+def create_pagination_keyboard_and_product_actions(page_num: int, category: str):
+    # initializing kb builder
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
+
+    # getting number of goods related to chosen category
     number_of_goods_in_category: int = len(goods[category])
+
+    # buttons add_to_cart and proceed_with_the_order
+    product_actions: list[InlineKeyboardButton] = [
+        InlineKeyboardButton(text=f'{key}', callback_data=f"{product_action_buttons[key]}") for key in
+        product_action_buttons]
+
+    # adding buttons to kb builder and adjusting representation
+    kb.add(*product_actions)
+
+    # generating correct pagination depending on current page
     page_num_incremented = page_num + 1
+    second_row = 2
     if page_num == 0:
-        kb.add(InlineKeyboardButton(text=f"{page_num_incremented}/{number_of_goods_in_category}", callback_data=page_num),
-               InlineKeyboardButton(text=f"{pagination_buttons['forward']}", callback_data='forward'))
+        kb.add(
+            InlineKeyboardButton(text=f"{page_num_incremented}/{number_of_goods_in_category}", callback_data=page_num),
+            InlineKeyboardButton(text=f"{pagination_buttons['forward']}", callback_data='forward'))
     elif 0 < page_num < number_of_goods_in_category - 1:
         kb.add(InlineKeyboardButton(text=f"{pagination_buttons['backward']}", callback_data='backward'),
-               InlineKeyboardButton(text=f"{page_num_incremented}/{number_of_goods_in_category}", callback_data=page_num),
+               InlineKeyboardButton(text=f"{page_num_incremented}/{number_of_goods_in_category}",
+                                    callback_data=page_num),
                InlineKeyboardButton(text=f"{pagination_buttons['forward']}", callback_data='forward'))
+        second_row = 3
     else:
         kb.add(InlineKeyboardButton(text=f"{pagination_buttons['backward']}", callback_data='backward'),
-               InlineKeyboardButton(text=f"{page_num_incremented}/{number_of_goods_in_category}", callback_data=page_num))
-    kb.adjust(3)
+               InlineKeyboardButton(text=f"{page_num_incremented}/{number_of_goods_in_category}",
+                                    callback_data=page_num))
+
+    # adding last 'get back' button
+    kb.add(InlineKeyboardButton(text=pagination_buttons['get_one_step_back'], callback_data="get_one_step_back"))
+
+    # adjusting pagination
+    kb.adjust(2, second_row, 1)
     return kb.as_markup(resize_keyboard=True)
 
 
@@ -56,6 +79,6 @@ def create_categories_list():
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
     buttons = [InlineKeyboardButton(text=category, callback_data=category) for category in goods]
     kb.row(*buttons)
-    kb.add(InlineKeyboardButton(text='Назад', callback_data='return_back'))
+    kb.add(InlineKeyboardButton(text='Назад', callback_data='get_one_step_back'))
     kb.adjust(1, repeat=True)
     return kb.as_markup()
