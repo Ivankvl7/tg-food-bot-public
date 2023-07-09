@@ -1,3 +1,5 @@
+import asyncio
+from aiogram.utils.keyboard import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import CallbackQuery, Message
 from aiogram.types.input_media_photo import InputMediaPhoto
 from aiogram import Router
@@ -15,10 +17,13 @@ from aiogram.fsm.state import default_state
 common_users_router: Router = Router()
 
 
-def cache_user(callback: CallbackQuery) -> dict:
-    user_id: int = callback.from_user.id
+def cache_user(message: Message) -> dict:
+    user_id: int = message.from_user.id
     if user_id not in user_status:
         user_status[user_id] = dict()
+        user_status[user_id]['balance'] = 0
+        user_status[user_id]['delivery address'] = 'Не указан'
+
     return user_status[user_id]
 
 
@@ -26,7 +31,7 @@ def cache_user(callback: CallbackQuery) -> dict:
 @common_users_router.message(Command(commands=list(command_handlers.keys())))
 async def start_command_handler(message: Message, state: FSMContext):
     await state.clear()
-
+    cache_user(message)
     command = message.text.strip('/')
     await message.answer(text=command_handlers[command],
                          reply_markup=keyboards.static_common_buttons_menu())
@@ -35,7 +40,7 @@ async def start_command_handler(message: Message, state: FSMContext):
 
 
 # listing available categories of goods
-@common_users_router.callback_query(StateFilter(default_state), Text('catalog'))
+@common_users_router.callback_query(Text('catalog'))
 async def process_catalog_button(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text('Доступные категории товаров')
     await callback.message.edit_reply_markup(reply_markup=keyboards.create_categories_list())
@@ -47,7 +52,6 @@ async def process_catalog_button(callback: CallbackQuery, state: FSMContext):
     StateFilter(FSMBrowsingState.browsing_categories), Text(text=list(category for category in goods)))
 async def process_products_listing(callback: CallbackQuery, state: FSMContext):
     user_id: int = callback.from_user.id
-    cache_user(callback)
     user_status[user_id]['current_page']: int = 0
     current_page: int = user_status[user_id]['current_page']
     user_status[user_id]['browsing_category']: str = callback.data
@@ -108,6 +112,11 @@ async def process_pagination_buttons(callback: CallbackQuery, state: FSMContext)
 @common_users_router.callback_query(Text('get_one_step_back'))
 async def processing_get_back_button(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
+    print('inside processing_get_back_button')
+    print(await state.get_state())
+    print(user_status)
+    print(callback.data)
+    print(callback.from_user.id)
     if await state.get_state() == FSMBrowsingState.browsing_categories:
         await state.clear()
         print('inside browsing_categories state')
@@ -118,13 +127,61 @@ async def processing_get_back_button(callback: CallbackQuery, state: FSMContext)
         await state.set_state(FSMBrowsingState.browsing_categories)
         await callback.message.answer(text='Доступные категории товаров',
                                       reply_markup=keyboards.create_categories_list())
+    elif await state.get_state() == FSMBrowsingState.browsing_personal_account:
+        print('handling step back from setting personal account browsing')
+    elif await state.get_state() == FSMBrowsingState.browsing_personal_address:
+        user_id: int = callback.from_user.id
+        await state.set_state(FSMBrowsingState.browsing_personal_account)
+
+        print('handling step back from setting address state')
+        # обязательно вынести код в одну фукнцию, он дублируется в хендлере ниже
+        await callback.message.answer(
+            text=f"<b>Полное имя:</b> {callback.message.from_user.full_name}\n"
+                 f"<b>Баланс:</b> {user_status[user_id]['balance']}\n"
+                 f"<b>Адрес доставки:</b> {user_status[user_id]['delivery address']}\n"
+                 f"<b>Заказы:</b> Нет заказов\n",
+            parse_mode="HTML",
+            reply_markup=keyboards.create_personal_menu_buttons())
+    else:
+        print('Улетело вникуда')
+        print(await state.get_state())
+
     # await state.set_state(default_state)
 
 
-@common_users_router.callback_query()
-async def processing_non_defined_requests(callback: CallbackQuery):
-    await callback.message.reply(text='Извините, я не знаю такой команды')
+@common_users_router.message(Text('Личный кабинет 📖'))
+async def process_client_account_button(message: Message, state: FSMContext):
+    user_id: int = message.from_user.id
+    await state.set_state(FSMBrowsingState.browsing_personal_account)
+    await asyncio.sleep(2)
+    await message.delete()
+    await message.answer(
+        text=f"<b>Полное имя:</b> {message.from_user.full_name}\n"
+             f"<b>Баланс:</b> {user_status[user_id]['balance']}\n"
+             f"<b>Адрес доставки:</b> {user_status[user_id]['delivery address']}\n"
+             f"<b>Заказы:</b> Нет заказов\n"
+             f"<b>id:</b> {message.from_user.id}\n"
+        ,
+        parse_mode="HTML",
+        reply_markup=keyboards.create_personal_menu_buttons())
 
-@common_users_router.message()
-async def processing_non_defined_requests(message: Message):
-    await message.reply(text='Извините, я не знаю такой команды')
+
+@common_users_router.callback_query(Text(text="set_address"), StateFilter(FSMBrowsingState.browsing_personal_account))
+async def process_set_address_button(callback: CallbackQuery, state: FSMContext):
+    print('inside set address')
+    await callback.message.edit_text(text='Пожалуйста, введите адрес в следующем формате: \n'
+                                       'Страна, город, улица, дом, квартира \n'
+                                       'Например: РФ, Калининград, Строителей, 16, 2',
+                                  reply_markup=InlineKeyboardMarkup(
+                                      inline_keyboard=[
+                                          [InlineKeyboardButton(text='Назад', callback_data='get_one_step_back')]]))
+    await state.set_state(FSMBrowsingState.browsing_personal_address)
+
+
+    @common_users_router.callback_query()
+    async def processing_non_defined_requests(callback: CallbackQuery):
+        await callback.message.reply(text='Извините, я не знаю такой команды')
+
+    @common_users_router.message()
+    async def processing_non_defined_requests(message: Message):
+        await message.reply(text='Извините, я не знаю такой команды')

@@ -114,6 +114,8 @@ def get_products(category: str) -> list:
     pass
 
 
-user_status: (str, dict[str, str | int]) = {
+user_status: dict[str | int, dict[str, str | int]] = {
 
 }
+
+orders: dict[str, list[str]] = {}

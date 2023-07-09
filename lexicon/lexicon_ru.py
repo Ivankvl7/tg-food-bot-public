@@ -34,9 +34,9 @@ start_follow_up_menu: dict = {
 }
 
 static_keyboard: dict = {
-    'clients_account_button': 'Личный кабинет 📖',
-    'cart_button': 'Корзина 🛒',
-    'balance_info_button': 'Баланс 💳',
-    'help_button': 'Помощь 🆘'
+    'clients_account': 'Личный кабинет 📖',
+    'cart': 'Корзина 🛒',
+    'balance_info': 'Баланс 💳',
+    'help': 'Помощь 🆘'
 }
 

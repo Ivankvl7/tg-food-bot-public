@@ -6,3 +6,8 @@ pagination_buttons: dict = {
     'forward': '>>',
     'get_one_step_back': 'Назад'
 }
+
+personal_menu_buttons: dict = {
+    "deposit_funds": "Пополнить счет",
+    "set_address": "Обновить адрес доставки"
+}
