@@ -12,9 +12,11 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from states.states import FSMBrowsingState
 from aiogram.fsm.state import default_state
+from middlewares.throttling import FSMCheckingMiddleware
 
 # creating router to navigate common users requests
 common_users_router: Router = Router()
+common_users_router.message.middleware(FSMCheckingMiddleware())
 
 
 def cache_user(message: Message) -> dict:
@@ -30,6 +32,7 @@ def cache_user(message: Message) -> dict:
 # handler for main menu commands, the commands are stored in lexicon.lexicon_ru.basic_commands dict
 @common_users_router.message(Command(commands=list(command_handlers.keys())))
 async def start_command_handler(message: Message, state: FSMContext):
+    # print(await state.get_state())
     await state.clear()
     cache_user(message)
     command = message.text.strip('/')
@@ -170,13 +173,12 @@ async def process_client_account_button(message: Message, state: FSMContext):
 async def process_set_address_button(callback: CallbackQuery, state: FSMContext):
     print('inside set address')
     await callback.message.edit_text(text='Пожалуйста, введите адрес в следующем формате: \n'
-                                       'Страна, город, улица, дом, квартира \n'
-                                       'Например: РФ, Калининград, Строителей, 16, 2',
-                                  reply_markup=InlineKeyboardMarkup(
-                                      inline_keyboard=[
-                                          [InlineKeyboardButton(text='Назад', callback_data='get_one_step_back')]]))
+                                          'Страна, город, улица, дом, квартира \n'
+                                          'Например: РФ, Калининград, Строителей, 16, 2',
+                                     reply_markup=InlineKeyboardMarkup(
+                                         inline_keyboard=[
+                                             [InlineKeyboardButton(text='Назад', callback_data='get_one_step_back')]]))
     await state.set_state(FSMBrowsingState.browsing_personal_address)
-
 
     @common_users_router.callback_query()
     async def processing_non_defined_requests(callback: CallbackQuery):
