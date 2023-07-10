@@ -11,3 +11,5 @@ personal_menu_buttons: dict = {
     "deposit_funds": "Пополнить счет",
     "set_address": "Обновить адрес доставки"
 }
+
+

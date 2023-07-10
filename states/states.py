@@ -7,3 +7,8 @@ class FSMBrowsingState(StatesGroup):
     browsing_goods: State = State()
     browsing_personal_account: State = State()
     browsing_personal_address: State = State()
+    browsing_static_balance_page: State = State()
+    browsing_static_help_page: State = State()
+    browsing_static_cart_page: State = State()
+    browsing_increase_balance_page: State() = State()
+    browsing_personal_query_page: State() = State()

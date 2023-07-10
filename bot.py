@@ -7,6 +7,8 @@ from handlers import user_handlers
 import logging
 import redis
 from aiogram.fsm.storage.redis import Redis, RedisStorage
+from handlers.user_handlers import catalog_handlers, menu_command_handlers, static_menu_handlers, \
+    undefined_requests_handlers
 
 
 # .env should be placed in the same directory as bot.py
@@ -31,7 +33,8 @@ async def main():
     dp.startup.register(main_commands_menu)
 
     # registering child routers
-    dp.include_routers(user_handlers.common_users_router)
+    dp.include_routers(catalog_handlers.router, menu_command_handlers.router, static_menu_handlers.router,
+                       undefined_requests_handlers.router)
 
     # skipping updates received while backed was offline
     await dp.start_polling(bot)
