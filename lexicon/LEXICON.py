@@ -12,4 +12,9 @@ personal_menu_buttons: dict = {
     "set_address": "Обновить адрес доставки"
 }
 
+non_pagination_buttons: dict={
+    'Закрыть': 'close_menu_window'
+    'Назад': 'get_back'
+}
+
 

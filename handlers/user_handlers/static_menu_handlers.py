@@ -8,7 +8,7 @@ from aiogram import Router, F
 from aiogram.filters import Command, CommandStart, Text
 from keyboards import keyboards
 from lexicon.lexicon_ru import command_handlers, start_follow_up_menu
-from database.database import image_1, goods, user_status, cart
+from database.database import image_1, goods, user_status, cart, states_stack
 from lexicon.LEXICON import pagination_buttons
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -24,7 +24,9 @@ router: Router = Router()
 @router.message(Text('Личный кабинет 📖'))
 async def process_client_account__static_button(message: Message, state: FSMContext):
     user_id: int = message.from_user.id
+    states_stack[user_id].append(FSMBrowsingState.browsing_personal_account)
     await state.set_state(FSMBrowsingState.browsing_personal_account)
+
     await asyncio.sleep(2)
     await message.delete()
     await message.answer(
@@ -53,6 +55,7 @@ async def process_set_address_button(callback: CallbackQuery, state: FSMContext)
 @router.message(Text('Баланс 💳'))
 async def process_balance_static_button(message: Message, state: FSMContext):
     user_id: int = message.from_user.id
+    states_stack[user_id].append(FSMBrowsingState.browsing_static_balance_page)
     await state.set_state(FSMBrowsingState.browsing_static_balance_page)
     await asyncio.sleep(2)
     await message.delete()
@@ -70,6 +73,7 @@ async def process_balance_static_button(message: Message, state: FSMContext):
 @router.message(Text('Корзина 🛒'))
 async def process_cart_static_button(message: Message, state: FSMContext):
     user_id: int = message.from_user.id
+    states_stack[user_id].append(FSMBrowsingState.browsing_static_balance_page)
     await state.set_state(FSMBrowsingState.browsing_static_balance_page)
     await asyncio.sleep(2)
     await message.delete()
@@ -87,6 +91,7 @@ async def process_cart_static_button(message: Message, state: FSMContext):
 @router.message(Text('Помощь 🆘'))
 async def process_client_account__static_button(message: Message, state: FSMContext):
     user_id: int = message.from_user.id
+    states_stack[user_id].append(FSMBrowsingState.browsing_static_help_page)
     await state.set_state(FSMBrowsingState.browsing_static_help_page)
     await asyncio.sleep(2)
     await message.delete()
@@ -101,6 +106,7 @@ async def process_client_account__static_button(message: Message, state: FSMCont
 @router.callback_query(Text('ask_manager'), StateFilter(FSMBrowsingState.browsing_static_help_page))
 async def process_ask_manager_inline_button(callback: CallbackQuery, state: FSMContext):
     user_id: int = callback.message.from_user.id
+    states_stack[user_id].append(FSMBrowsingState.browsing_personal_query_page)
     await state.set_state(FSMBrowsingState.browsing_personal_query_page)
     await asyncio.sleep(2)
     await callback.message.delete()

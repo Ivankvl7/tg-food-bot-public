@@ -143,4 +143,4 @@ orders: dict[str, list[str]] = {}
 cart: dict[str | int, list[CartItem]] = {
     593908084: [CartItem(*goods['category1'][0].values()), CartItem(*goods['category1'][1].values())]}
 
-states_stack: dict[str | int, list[State, None]] = dict()
+states_stack: dict[str | int, list[State]] = dict()

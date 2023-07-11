@@ -6,8 +6,8 @@ from aiogram import Router
 from aiogram.filters import Command, CommandStart, Text
 from keyboards import keyboards
 from lexicon.lexicon_ru import command_handlers, start_follow_up_menu
-from database.database import image_1, goods, user_status
-from lexicon.LEXICON import pagination_buttons, product_action_buttons
+from database.database import image_1, goods, user_status, states_stack
+from lexicon.LEXICON import pagination_buttons, product_action_buttons, non_pagination_buttons
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from states.states import FSMBrowsingState
@@ -23,9 +23,13 @@ router: Router = Router()
 # listing available categories of goods
 @router.callback_query(StateFilter(default_state), Text('catalog'))
 async def process_catalog_button(callback: CallbackQuery, state: FSMContext):
+    user_id: int = callback.from_user.id
     await callback.message.edit_text('Доступные категории товаров')
     await callback.message.edit_reply_markup(reply_markup=keyboards.create_categories_list())
+    states_stack[user_id].append(FSMBrowsingState.browsing_categories)
     await state.set_state(FSMBrowsingState.browsing_categories)
+    print('inside catalog button')
+    print(f"states stack is following: {states_stack[user_id]}")
 
 
 # opens goods list from selected category
@@ -37,6 +41,7 @@ async def process_products_listing(callback: CallbackQuery, state: FSMContext):
     current_page: int = user_status[user_id]['current_page']
     user_status[user_id]['browsing_category']: str = callback.data
     browsing_category: str = user_status[user_id]['browsing_category']
+    states_stack[user_id].append(FSMBrowsingState.browsing_goods)
     await state.set_state(FSMBrowsingState.browsing_goods)
     print('setting FSMBrowsingState.browsing_goods state')
     await callback.message.delete()
@@ -49,22 +54,20 @@ async def process_products_listing(callback: CallbackQuery, state: FSMContext):
         reply_markup=keyboards.create_pagination_keyboard_and_product_actions(page_num=current_page,
                                                                               category=callback.data)
     )
+    print('inside product listing')
+    print(f"states stack is following: {states_stack[user_id]}")
 
 
 # handles pagination when browsing goods
 @router.callback_query(StateFilter(FSMBrowsingState.browsing_goods),
                        Text(text=list(pag for pag in pagination_buttons)), ~Text(text='get_one_step_back'))
 async def process_pagination_buttons(callback: CallbackQuery, state: FSMContext):
-    print(user_status)
-    print(callback)
-    print(state.get_state())
     user_id = callback.from_user.id
     browsing_category = user_status[user_id]['browsing_category']
     browsing_category_goods = [item for item in goods[browsing_category]]
     current_page = user_status[user_id]['current_page']
     if callback.data == "forward":
         if user_status[user_id]['current_page'] < len(browsing_category_goods) - 1:
-            print('incrementing current_page')
             user_status[user_id]['current_page'] = current_page + 1
         else:
             await callback.answer()
@@ -88,16 +91,16 @@ async def process_pagination_buttons(callback: CallbackQuery, state: FSMContext)
                                              reply_markup=keyboards.create_pagination_keyboard_and_product_actions(
                                                  page_num=current_page,
                                                  category=browsing_category))
+    print('continuing to browse goods')
+    print(f"states stack is following: {states_stack[user_id]}")
 
 
 @router.callback_query(Text('get_one_step_back'))
 async def processing_get_back_button(callback: CallbackQuery, state: FSMContext):
     await callback.message.delete()
-    print('inside processing_get_back_button')
-    print(await state.get_state())
-    print(user_status)
-    print(callback.data)
-    print(callback.from_user.id)
+    user_id = callback.from_user.id
+    if states_stack:
+        states_stack[user_id].pop(-1)
     if await state.get_state() == FSMBrowsingState.browsing_categories:
         await state.clear()
         print('inside browsing_categories state')
@@ -108,8 +111,6 @@ async def processing_get_back_button(callback: CallbackQuery, state: FSMContext)
         await state.set_state(FSMBrowsingState.browsing_categories)
         await callback.message.answer(text='Доступные категории товаров',
                                       reply_markup=keyboards.create_categories_list())
-    elif await state.get_state() == FSMBrowsingState.browsing_personal_account:
-        print('handling step back from setting personal account browsing')
     elif await state.get_state() == FSMBrowsingState.browsing_personal_address:
         user_id: int = callback.from_user.id
         await state.set_state(FSMBrowsingState.browsing_personal_account)
@@ -123,20 +124,27 @@ async def processing_get_back_button(callback: CallbackQuery, state: FSMContext)
                  f"<b>Заказы:</b> Нет заказов\n",
             parse_mode="HTML",
             reply_markup=keyboards.create_personal_menu_buttons())
+
     else:
-
+        if states_stack[user_id]:
+            await state.set_state(states_stack[user_id][-1])
+        else:
+            await state.set_state(default_state)
         print('Улетело вникуда')
-        print(await state.get_state())
-
-
+    print(await state.get_state())
+    print('inside processing_get_back_button')
+    print(f" renewed states stack is following {states_stack}")
 
     # await state.set_state(default_state)
 
 
-@router.callback_query(CatalogFilterCallbacks(states_obj=FSMBrowsingState, pag=pagination_buttons, cats=goods))
+@router.callback_query(CatalogFilterCallbacks(states_obj=FSMBrowsingState,
+                                              pag=pagination_buttons,
+                                              cats=goods,
+                                              action_buttons=product_action_buttons))
 async def handling_catalog_queries_out_from_unallowed_states(callback: CallbackQuery, state: FSMContext):
     await callback.answer(text='Закройте все окна помимо каталога, чтобы вернуться в него, '
-                          'либо начните просмотр каталога заново, введя команду /start',
+                               'либо начните просмотр каталога заново, введя команду /start',
                           show_alert=True,
                           cache_time=3
                           )
