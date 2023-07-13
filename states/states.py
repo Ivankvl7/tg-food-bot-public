@@ -12,3 +12,4 @@ class FSMBrowsingState(StatesGroup):
     browsing_static_cart_page: State = State()
     browsing_increase_balance_page: State() = State()
     browsing_personal_query_page: State() = State()
+    finalizing_order: State = State()

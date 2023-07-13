@@ -1,8 +1,7 @@
 from aiogram.utils.keyboard import KeyboardButton, ReplyKeyboardBuilder, InlineKeyboardButton, InlineKeyboardBuilder, \
     ReplyKeyboardMarkup, InlineKeyboardMarkup
-from aiogram.types import CallbackQuery, Message
-from lexicon.lexicon_ru import static_keyboard, start_follow_up_menu
-from lexicon.LEXICON import pagination_buttons, product_action_buttons, personal_menu_buttons
+from lexicon.LEXICON import pagination_buttons, product_action_buttons, special_buttons, static_keyboard, \
+    start_follow_up_menu
 from database.database import goods
 
 
@@ -89,6 +88,6 @@ def create_personal_menu_buttons():
     buttons = [InlineKeyboardButton(text=personal_menu_buttons[button], callback_data=button) for button in
                personal_menu_buttons]
     kb.add(*buttons)
-    kb.add(InlineKeyboardButton(text='Закрыть', callback_data='get_one_step_back'))
+    kb.add(InlineKeyboardButton(text='Закрыть', callback_data='close_menu_window'))
     kb.adjust(1, repeat=True)
     return kb.as_markup()

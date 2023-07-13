@@ -1,10 +1,7 @@
 from aiogram.filters import BaseFilter
 from database.database import goods
-from lexicon.LEXICON import pagination_buttons, product_action_buttons
 from aiogram.types import CallbackQuery
-from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from states.states import FSMBrowsingState
 
 
 # instead of goods import categories table from db will be used
@@ -36,3 +33,6 @@ class CatalogFilterCallbacks(BaseFilter):
 
 # obj1 = CatalogFilterCallbacks(FSMBrowsingState, pag=pagination_buttons, cats=goods)
 # print(obj1.__dict__)
+
+# appropriate states for one_step_back button related to pagination and catalog
+

@@ -1,4 +1,4 @@
-from services.custom_object import CartItem
+from models.models import CartItem
 from aiogram.fsm.state import State
 
 goods = {

@@ -1,6 +1,5 @@
 from aiogram.types import CallbackQuery, Message
 from aiogram import Router
-from services.services import cache_user
 
 router: Router = Router()
 
@@ -8,7 +7,7 @@ router: Router = Router()
 @router.callback_query()
 async def processing_non_defined_requests(callback: CallbackQuery):
     print(callback.data)
-    await callback.message.reply(text='Извините, я не знаю такой команды')
+    await callback.answer()
 
 
 @router.message()

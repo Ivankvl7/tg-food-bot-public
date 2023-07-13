@@ -7,7 +7,7 @@ from handlers import user_handlers
 import logging
 import redis
 from aiogram.fsm.storage.redis import Redis, RedisStorage
-from handlers.user_handlers import catalog_handlers, menu_command_handlers, static_menu_handlers, \
+from handlers.user_handlers import static_menu_handlers, catalog_handlers, menu_command_handlers, \
     undefined_requests_handlers
 
 
