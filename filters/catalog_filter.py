@@ -1,5 +1,4 @@
 from aiogram.filters import BaseFilter
-from database.database import goods
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 

@@ -1,10 +1,12 @@
-product_action_buttons = {'Добавить в корзину': 'add_to_cart',
-                          'Оформить заказ': 'proceed_with_the_order'}
+product_action_buttons = {'add_to_cart': 'Добавить в корзину',
+                          'proceed_with_order': 'Оформить заказ',
+                          'backward': '<<',
+                          'forward': '>>',
+                          'cancel_product_browsing': 'Назад'
+                          }
 
 pagination_buttons: dict = {
-    'backward': '<<',
-    'forward': '>>',
-    'get_one_step_back': 'Назад'
+
 }
 
 special_buttons: dict = {
@@ -20,30 +22,21 @@ non_pagination_buttons: dict = {
     "Оформить заказ заказ": "finalize order"
 }
 
-start_follow_up_menu: dict = {
-    "start": ["Каталог 📕", "Начните ознакамливаться с каталогом товаров "]
-
-}
-
 static_keyboard: dict = {
+    'catalog': 'Каталог 📕',
     'clients_account': 'Личный кабинет 📖',
     'cart': 'Корзина 🛒',
-    'balance_info': 'Баланс 💳',
     'help': 'Помощь 🆘'
 }
 
 basic_menu: dict = {
-    "start": """ Вернуться на главную страницу""",
-
-    "help": """Подсказки по взаимодействию с ботом""",
-
-    "subscribe": """Подписка на обновления магазина""",
-
-    "payment": "Методы оплаты",
-
-    "contacts": "Контактные данные",
-
-    # "/support": "QA for frequently asked questions by the same or a different bot helper"
+    "start": "Вернуться на главную страницу",
+    "catalog": "Перейти в каталог",
+    "help": "Подсказки по взаимодействию с ботом",
+    "payment": "Информация об оплате",
+    "delivery": "Информация о доставке",
+    "submit_request": "Задать вопрос менеджеру",
+    "legal": "Юридическая информация о магазине"
 
 }
 
@@ -60,4 +53,17 @@ command_handlers: dict = {
 
     # "/support": "QA for frequently asked questions by the same or a different bot helper"
 
+}
+
+categories_uuid: dict = {
+    '55b9124f-7a1b-4d76-a729-98fc53010545': 1,
+    '4e1d1603-6d45-4587-aea8-81b295fe6499': 2,
+    'c1bd5c53-887e-4d0d-af5f-f9142a2f341a': 3
+}
+
+product_columns_mapper: dict = {
+    'product_name': 'Наименование',
+    'category_name': 'Категория',
+    'price': 'Цена',
+    'description': 'Описание',
 }

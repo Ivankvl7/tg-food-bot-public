@@ -1,12 +1,14 @@
 from aiogram.types import CallbackQuery, Message
 from aiogram import Router
+from middlewares.throttling import TimingMiddleware, IdMiddleware
 
 router: Router = Router()
 
 
 @router.callback_query()
 async def processing_non_defined_requests(callback: CallbackQuery):
-    print(callback.data)
+    print('processing_non_defined_requests')
+    print(f"callback_data = {callback.data}")
     await callback.answer()
 
 

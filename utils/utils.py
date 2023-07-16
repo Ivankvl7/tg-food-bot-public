@@ -1,13 +1,28 @@
-from aiogram.types import Message
-from database.database import user_status, states_stack
+from datetime import datetime, timedelta
+from aiogram.filters.callback_data import CallbackData, CallbackQuery
+from filters.callbacks import CallbackFactoryCategories as cfc, CallbackFactoryProductDetails as cfp, \
+    CallbackFactoryGoods as cfg, CallbackFactoryStepBack as cfsb
+from lexicon.LEXICON import product_columns_mapper
+from typing import Callable
+from sqlalchemy import Row
 
 
-def cache_user(message: Message) -> dict:
-    user_id: int = message.from_user.id
-    if user_id not in user_status:
-        user_status[user_id] = dict()
-        user_status[user_id]['balance'] = 0
-        user_status[user_id]['delivery address'] = 'Не указан'
-        states_stack[user_id] = []
+async def time_validity_check(callback: CallbackQuery,
+                              callback_data: cfc | cfp | cfg | cfsb):
+    return datetime.strptime(callback_data.timestamp, '%d-%m-%y %H-%M') + timedelta(minutes=5) < datetime.utcnow()
 
-    return user_status[user_id]
+
+async def send_product_card(callback: CallbackQuery,
+                            callback_data: cfc | cfp | cfg | cfsb,
+                            product_action_bar: Callable,
+                            product: Row):
+
+    await callback.message.answer_photo(
+        caption='\n'.join(
+            [f"<b>{value}</b>: {getattr(product, key)}" for key, value in
+             product_columns_mapper.items()]),
+        parse_mode='HTML',
+        photo='https://eavf3cou74b.exactdn.com/wp-content/uploads/2021/09/21104001/How-to-Photograph-Jewelry-10-768x512.jpg?strip=all&lossy=1&ssl=1',
+        reply_markup=product_action_bar(category_uuid=callback_data.uuid, update=callback)
+
+    )

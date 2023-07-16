@@ -5,10 +5,8 @@ from aiogram import Bot, Dispatcher
 from keyboards.set_menu import main_commands_menu
 from handlers import user_handlers
 import logging
-import redis
 from aiogram.fsm.storage.redis import Redis, RedisStorage
-from handlers.user_handlers import static_menu_handlers, catalog_handlers, menu_command_handlers, \
-    undefined_requests_handlers
+from handlers.user_handlers import menu_command_handlers, catalog_handlers, undefined_requests_handlers
 
 
 # .env should be placed in the same directory as bot.py
@@ -33,8 +31,7 @@ async def main():
     dp.startup.register(main_commands_menu)
 
     # registering child routers
-    dp.include_routers(catalog_handlers.router, menu_command_handlers.router, static_menu_handlers.router,
-                       undefined_requests_handlers.router)
+    dp.include_routers(menu_command_handlers.router, catalog_handlers.router, undefined_requests_handlers.router)
 
     # skipping updates received while backed was offline
     await dp.start_polling(bot)

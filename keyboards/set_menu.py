@@ -5,6 +5,6 @@ from lexicon.LEXICON import basic_menu
 
 async def main_commands_menu(bot: Bot) -> None:
     main_menu_commands: list[BotCommand] = [BotCommand(command=f"/{key}", description=basic_menu[key]) for key in
-                                            basic_menu.keys()]
+                                            basic_menu]
 
     await bot.set_my_commands(main_menu_commands)
