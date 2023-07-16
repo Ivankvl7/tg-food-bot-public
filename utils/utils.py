@@ -7,13 +7,11 @@ from typing import Callable
 from sqlalchemy import Row
 
 
-async def time_validity_check(callback: CallbackQuery,
-                              callback_data: cfc | cfp | cfg | cfsb):
+async def time_validity_check(callback_data: cfc | cfp | cfg | cfsb):
     return datetime.strptime(callback_data.timestamp, '%d-%m-%y %H-%M') + timedelta(minutes=5) < datetime.utcnow()
 
 
 async def send_product_card(callback: CallbackQuery,
-                            callback_data: cfc | cfp | cfg | cfsb,
                             product_action_bar: Callable,
                             product: Row):
 
@@ -23,6 +21,6 @@ async def send_product_card(callback: CallbackQuery,
              product_columns_mapper.items()]),
         parse_mode='HTML',
         photo='https://eavf3cou74b.exactdn.com/wp-content/uploads/2021/09/21104001/How-to-Photograph-Jewelry-10-768x512.jpg?strip=all&lossy=1&ssl=1',
-        reply_markup=product_action_bar(category_uuid=callback_data.uuid, update=callback)
+        reply_markup=product_action_bar(product_uuid=product.product_uuid, update=callback)
 
     )

@@ -6,7 +6,8 @@ from datetime import datetime
 from lexicon.LEXICON import categories_uuid
 from filters.callbacks import CallbackFactoryCategories, CallbackFactoryProductDetails, CallbackFactoryGoods, \
     CallbackFactoryStepBack
-from models.methods import select_categories, select_max_product_id, select_product
+from models.methods import get_categories, get_first_product, get_previous_product_uuid, get_next_product_uuid, \
+    get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id
 from typing import Sequence
 
 
@@ -32,11 +33,11 @@ def create_categories_kb(update: CallbackQuery | Message, **kwargs):
         user_id = update.from_user.id
         print('inside create_categories_kb; update = Message; user_id = update.from_user.id')
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
-    categories: Sequence = select_categories()
-    kb.add(*[InlineKeyboardButton(text=row.name,
+    categories: Sequence = get_categories()
+    kb.add(*[InlineKeyboardButton(text=row.category_name,
                                   callback_data=CallbackFactoryCategories(
                                       user_id=user_id,
-                                      uuid=row.uuid,
+                                      uuid=row.category_uuid,
                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                   ).pack())
              for row in categories])
@@ -44,38 +45,38 @@ def create_categories_kb(update: CallbackQuery | Message, **kwargs):
     return kb.as_markup(**kwargs)
 
 
-def product_action_bar(category_uuid: int | str, update: CallbackQuery, product_id: int | str = 1, **keyboard_options):
+def product_action_bar(update: CallbackQuery,
+                       category_uuid: int | str = None,
+                       product_uuid: str = None,
+                       **keyboard_options):
+    if category_uuid is not None:
+        product_uuid = get_first_product(category_uuid=category_uuid).product_uuid
+
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
     buttons: list[InlineKeyboardButton] = [InlineKeyboardButton(text=value,
                                                                 callback_data=key) for key, value in
                                            product_action_buttons.items()]
-    new_product_id = product_id
-    if product_id > 1:
-        new_product_id = product_id - 1
     buttons[2] = InlineKeyboardButton(text="<<",
                                       callback_data=CallbackFactoryGoods(
                                           user_id=update.from_user.id,
-                                          uuid=select_product(category_uuid=category_uuid,
-                                                              product_id=new_product_id).uuid,
+                                          uuid=get_previous_product_uuid(current_product_uuid=product_uuid),
                                           timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack()
                                       )
-    if product_id < select_max_product_id(category_uuid=category_uuid):
-        new_product_id = product_id + 1
     buttons[3] = InlineKeyboardButton(text=">>",
                                       callback_data=CallbackFactoryGoods(
                                           user_id=update.from_user.id,
-                                          uuid=select_product(category_uuid=category_uuid,
-                                                              product_id=new_product_id).uuid,
+                                          uuid=get_next_product_uuid(current_product_uuid=product_uuid),
                                           timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack()
                                       )
 
-    buttons.insert(3, InlineKeyboardButton(text=f"{product_id} / {select_max_product_id(category_uuid=category_uuid)}",
-                                           callback_data='add_to_favorite'))
+    buttons.insert(3, InlineKeyboardButton(
+        text=f"{get_current_product_num_id(product_uuid=product_uuid)} / "
+             f"{get_max_product_id(category_uuid=get_category_uuid_by_product_uuid(product_uuid=product_uuid))}",
+        callback_data='add_to_favorite'))
     buttons.insert(0, InlineKeyboardButton(text=f"Подробнее о товаре",
                                            callback_data=CallbackFactoryProductDetails(
                                                user_id=update.from_user.id,
-                                               uuid=select_product(category_uuid=category_uuid,
-                                                                   product_id=product_id).uuid,
+                                               uuid=product_uuid,
                                                timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                            ).pack()
                                            )

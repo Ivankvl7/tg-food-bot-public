@@ -4,7 +4,6 @@ from aiogram import Router
 from aiogram.filters import Command
 from keyboards import keyboards
 from lexicon.LEXICON import command_handlers
-from models.methods import select_categories
 from aiogram.filters import Text
 from keyboards.keyboards import create_categories_kb
 from aiogram.types import Message, CallbackQuery

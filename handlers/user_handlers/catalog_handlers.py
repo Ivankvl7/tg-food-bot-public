@@ -7,12 +7,13 @@ from aiogram.types import CallbackQuery
 from aiogram import Router
 from keyboards.keyboards import product_action_bar
 from filters.callbacks import CallbackFactoryCategories, CallbackFactoryStepBack, CallbackFactoryGoods
-from models.methods import select_product
+from models.methods import get_first_product
 from lexicon.LEXICON import product_columns_mapper
 from keyboards.keyboards import create_categories_kb
 from middlewares.throttling import TimingMiddleware, IdMiddleware
 from sqlalchemy import Row
 from utils.utils import send_product_card
+from models.methods import get_product
 
 # router to navigate catalog related requests
 router: Router = Router()
@@ -27,9 +28,8 @@ async def process_products_listing(callback: CallbackQuery, callback_data: Callb
     print(f"callback.message.from_user.id = {callback.message.from_user.id}")
     print(f"callback.from_user.id = {callback.from_user.id}")
     print(f"callback_data.user_id = {callback_data.user_id}")
-    product: Row = select_product(callback_data.uuid)
+    product: Row = get_first_product(category_uuid=callback_data.uuid)
     await send_product_card(callback=callback,
-                            callback_data=callback_data,
                             product_action_bar=product_action_bar,
                             product=product)
     print('product listing finished')
@@ -47,12 +47,11 @@ async def get_back_into_categories(callback: CallbackQuery):
 
 @router.callback_query(CallbackFactoryGoods.filter())
 async def process_pagination(callback: CallbackQuery, callback_data: CallbackFactoryGoods):
-    # product: Row = select_product(product_id=callback_data.uuid)
-    # print('inside process_pagination')
-    # await send_product_card(callback=callback,
-    #                         callback_data=callback_data,
-    #                         product_action_bar=product_action_bar,
-    #                         product=product)
-    # print('process_pagination finished')
+    product: Row = get_product(product_uuid=callback_data.uuid)
+    print('inside process_pagination')
+    await send_product_card(callback=callback,
+                            product_action_bar=product_action_bar,
+                            product=product)
+    print('process_pagination finished')
     print(callback_data.uuid, len(callback_data.uuid))
     await callback.answer()

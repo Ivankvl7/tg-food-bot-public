@@ -3,59 +3,119 @@ from sqlalchemy import Table, select, Select, MetaData, Result, Row, func
 from sqlalchemy.orm import Session, Query
 from typing import Sequence
 from lexicon.LEXICON import product_columns_mapper
-from sqlalchemy.sql.expression import Subquery
+from sqlalchemy.sql.expression import Subquery, CTE
 
 
-def select_categories() -> Sequence:
+def categories_products_cte() -> CTE:
+    with DBInstance.get_session():
+        metadata = DBInstance.get_metadata()
+        categories = Table('categories', metadata)
+        products: Table = Table('products', metadata)
+        cte: CTE = select(products, categories).join_from(products, categories).cte()
+    return cte
+
+
+def get_categories() -> Sequence:
     with DBInstance.get_session() as session:
-        metadata: MetaData = DBInstance.get_metadata()
-        categories: Table = Table('categories', metadata)
+        metadata = DBInstance.get_metadata()
+        categories = Table('categories', metadata)
         select_query: Select = select(categories)
         data: Result = session.execute(select_query)
-        return data.all()
+    return data.all()
 
 
-def select_product(category_uuid: int | str | None = None, product_id: int | str = 1) -> Row:
+def get_product(product_uuid: str | int) -> Row:
     with DBInstance.get_session() as session:
-        metadata: MetaData = DBInstance.get_metadata()
-        products = Table('products', metadata)
-        categories: Table = Table('categories', metadata)
-        if category_uuid:
-            query: Select = select(
-                products.c.name.label('product_name'),
-                categories.c.name.label('category_name'),
-                products.c.price,
-                products.c.description,
-                products.c.image_url,
-                products.c.uuid).join_from(products, categories).where(
-                categories.c.uuid == category_uuid)
-        if isinstance(product_id, str):
-            query: Select = select(
-                products.c.name.label('product_name'),
-                categories.c.name.label('category_name'),
-                products.c.price,
-                products.c.description,
-                products.c.image_url,
-                products.c.uuid).join_from(products, categories).where(
-                products.c.uuid == product_id)
-            selected_data: Result = session.execute(query)
-            return selected_data.one()
-        selected_data: Result = session.execute(query)
-        return selected_data.all()[product_id - 1]
+        cte: CTE = categories_products_cte()
+        query: Select = select(cte).where(cte.c.product_uuid == product_uuid)
+        data: Result = session.execute(query)
+    return data.one()
 
 
-def select_max_product_id(category_uuid: str | int):
+def get_first_product(category_uuid: int | str) -> Row:
     with DBInstance.get_session() as session:
-        metadata: MetaData = DBInstance.get_metadata()
+        metadata = DBInstance.get_metadata()
+        categories = Table('categories', metadata)
         products: Table = Table('products', metadata)
-        categories: Table = Table('categories', metadata)
-        query: Select = select(func.count("*")).join_from(products, categories).where(
-            categories.c.uuid == category_uuid)
+        query: Select = select(
+            products.c.product_name,
+            categories.c.category_name,
+            products.c.price,
+            products.c.description,
+            products.c.image_url,
+            products.c.product_uuid).join_from(products, categories).where(
+            categories.c.category_uuid == category_uuid)
+        result: Result = session.execute(query)
+        return result.first()
+
+
+def get_max_product_id(category_uuid: str | int) -> int | str:
+    with DBInstance.get_session() as session:
+        cte: CTE = categories_products_cte()
+        query: Select = select(func.count("*")).select_from(cte).where(
+            cte.c.category_uuid == category_uuid)
         data: Result = session.execute(query)
     return data.scalar()
 
 
-product = select_product(product_id='818dafc2-3830-4152-b286-c4481557d6f9',
-                         category_uuid='55b9124f-7a1b-4d76-a729-98fc53010545')
+def get_category_uuid_by_product_uuid(product_uuid: str | int = None) -> str | int:
+    with DBInstance.get_session() as session:
+        cte: CTE = categories_products_cte()
+        query: Select = select(cte.c.category_uuid).where(cte.c.product_uuid == product_uuid)
+        data: Result = session.execute(query)
+    return data.scalar()
 
-class
+
+def products_filtered_by_category_and_numbered(product_uuid: str | int) -> CTE:
+    with DBInstance.get_session() as session:
+        cte: CTE = categories_products_cte()
+        cte_new: CTE = select(func.row_number().over(order_by=cte.c.product_id).label('num_id'),
+                              cte).where(
+            cte.c.category_uuid == get_category_uuid_by_product_uuid(product_uuid)).cte()
+    return cte_new
+
+
+def get_current_product_num_id(product_uuid: str | int) -> str | int:
+    with DBInstance.get_session() as session:
+        cte = products_filtered_by_category_and_numbered(product_uuid)
+        query: Select = select(cte.c.num_id).where(cte.c.product_uuid == product_uuid)
+        data: Result = session.execute(query)
+    return data.scalar()
+
+
+def get_next_product_uuid(current_product_uuid: str | int) -> str | int:
+    with DBInstance.get_session() as session:
+        if get_current_product_num_id(current_product_uuid) == get_max_product_id(
+                get_category_uuid_by_product_uuid(current_product_uuid)):
+            return current_product_uuid
+        cte: CTE = products_filtered_by_category_and_numbered(current_product_uuid)
+        query: Select = select(cte.c.product_uuid).where(
+            cte.c.num_id == get_current_product_num_id(current_product_uuid) + 1)
+        res: Result = session.execute(query)
+    return res.scalar()
+
+
+def get_previous_product_uuid(current_product_uuid: str | int) -> str | int:
+    with DBInstance.get_session() as session:
+        if get_current_product_num_id(current_product_uuid) == 1:
+            return current_product_uuid
+        cte: CTE = products_filtered_by_category_and_numbered(current_product_uuid)
+        query: Select = select(cte.c.product_uuid).where(
+            cte.c.num_id == get_current_product_num_id(current_product_uuid) - 1)
+        res: Result = session.execute(query)
+    return res.scalar()
+
+# data1 = get_categories()
+# print(data1)
+# data2 = get_first_product('55b9124f-7a1b-4d76-a729-98fc53010545')
+# print(data2)
+# data3 = get_max_product_id('55b9124f-7a1b-4d76-a729-98fc53010545')
+# print(data3)
+# data4 = get_category_uuid_by_product_uuid('b4b238c0-9d29-4a73-9fbc-e36862a2dfd8')
+# print(data4)
+# data5 = get_current_product_num_id('88ce6711-89c5-4c42-9ae1-e7032e09201b')
+# print(data5)
+# data6 = get_next_product_uuid('777812e4-8380-4252-bb51-9decd2e495b7')
+# print(data6)
+# data7 = get_previous_product_uuid('88ce6711-89c5-4c42-9ae1-e7032e09201b')
+# print(data7)

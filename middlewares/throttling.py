@@ -11,7 +11,7 @@ class TimingMiddleware(BaseMiddleware):
             handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
             event: CallbackQuery,
             data: dict[str, Any]) -> Any:
-        if await time_validity_check(event, data['callback_data']):
+        if await time_validity_check(data['callback_data']):
             return await event.answer(text='Меню устарело', show_alert=True)
         result = await handler(event, data)
         return result
