@@ -105,6 +105,7 @@ def get_previous_product_uuid(current_product_uuid: str | int) -> str | int:
         res: Result = session.execute(query)
     return res.scalar()
 
+
 # data1 = get_categories()
 # print(data1)
 # data2 = get_first_product('55b9124f-7a1b-4d76-a729-98fc53010545')
@@ -119,3 +120,26 @@ def get_previous_product_uuid(current_product_uuid: str | int) -> str | int:
 # print(data6)
 # data7 = get_previous_product_uuid('88ce6711-89c5-4c42-9ae1-e7032e09201b')
 # print(data7)
+
+def get_static_videos(product_uuid: int | str) -> list[str]:
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        products: Table = Table('products', metadata)
+        static_media_videos: Table = Table('static_media_videos', metadata)
+        query: Select = select(static_media_videos.c.video_url).join_from(products, static_media_videos).where(
+            products.c.product_uuid == product_uuid)
+        data: Result = session.execute(query)
+    return [row.video_url for row in data]
+
+
+data8 = get_static_videos('2fe926de-b676-49f1-8e12-00325ed080c3')
+print(data8)
+
+
+def get_category(category_uuid: str | int):
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        categories: Table = Table('categories', metadata)
+        query: Select = select(categories.c.category_name).where(categories.c.category_uuid == category_uuid)
+        data: Result = session.execute(query)
+    return data.scalar()

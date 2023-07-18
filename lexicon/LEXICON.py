@@ -24,7 +24,8 @@ non_pagination_buttons: dict = {
 
 static_keyboard: dict = {
     'catalog': 'Каталог 📕',
-    'clients_account': 'Личный кабинет 📖',
+    'clients_account': 'Мои заказы 📖',
+    'favorite_products': 'Избранное ⭐️',
     'cart': 'Корзина 🛒',
     'help': 'Помощь 🆘'
 }
@@ -67,3 +68,6 @@ product_columns_mapper: dict = {
     'price': 'Цена',
     'description': 'Описание',
 }
+
+cart_column_mapper: dict = {}
+cart_column_mapper.update(product_columns_mapper)

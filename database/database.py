@@ -32,17 +32,9 @@ class DBInstance:
 
 class RedisCache:
     __cache = None
-    __instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if cls.__instance is None:
-            cls.__instance = super().__new__(cls)
-        if cls.__instance is None:
-            cls.__cache = redis.Redis(host='localhost', port=6379, db=0)
-        return cls.__instance
 
     @classmethod
     def get_cache(cls):
+        if cls.__cache is None:
+            cls.__cache = redis.Redis(host='localhost', port=6379, db=0)
         return cls.__cache
-
-

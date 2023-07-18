@@ -16,20 +16,16 @@ router: Router = Router()
 async def process_start_command(message: Message):
     command = message.text.strip('/')
     await message.answer(text=command_handlers[command],
-                         reply_markup=keyboards.static_common_buttons_menu())
+                         reply_markup=keyboards.static_common_buttons_menu(is_persistent=True))
 
 
 @router.message(Text('Каталог 📕'))
 @router.message(Command('catalog'))
-async def process_catalog_command(update: CallbackQuery | Message):
+async def process_catalog_command(update: Message):
     print('inside catalog')
     print(update.json())
-    if isinstance(update, CallbackQuery):
-        await update.message.answer(text="Ниже представлены доступные категории товаров",
-                                    reply_markup=create_categories_kb(update))
-    elif isinstance(update, Message):
-        await update.answer(text="Ниже представлены доступные категории товаров",
-                            reply_markup=create_categories_kb(update))
-    print('catalog processing finished')
+    await update.answer(text="Ниже представлены доступные категории товаров",
+                        reply_markup=create_categories_kb(update))
 
 
+print('catalog processing finished')
