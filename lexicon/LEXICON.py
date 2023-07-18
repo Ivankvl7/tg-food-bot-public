@@ -68,6 +68,3 @@ product_columns_mapper: dict = {
     'price': 'Цена',
     'description': 'Описание',
 }
-
-cart_column_mapper: dict = {}
-cart_column_mapper.update(product_columns_mapper)

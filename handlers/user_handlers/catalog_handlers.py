@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import re
 from aiogram.utils.keyboard import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import F
@@ -131,15 +131,46 @@ async def process_finalize_order_button(update: CallbackQuery,
 @router.callback_query(CallbackFactoryProductDetailsFromCart.filter())
 async def process_product_details_from_cart_button(callback: CallbackQuery,
                                                    callback_data: CallbackFactoryProductDetailsFromCart):
+    user_id = callback_data.user_id
+    product: CartItem = cart[user_id][callback_data.index]
+    if callback_data.index == 0:
+        index = callback_data.index
+    else:
+        index = callback_data.index - 1
+    media_group_photos = [
+        InputMediaPhoto(caption='\n'.join([f"<b>{value}</b>: {getattr(product, key)}" for key, value in
+                                           product_columns_mapper.items()]),
+                        parse_mode='HTML',
+                        media='https://static.ebayinc.com/static/assets/Uploads/Stories/Articles/_resampled/ScaleWidthWzgwMF0/ebay-authenticity-guarantee-fine-jewelry.jpg'),
+        InputMediaPhoto(
+            media='https://static.ebayinc.com/static/assets/Uploads/Stories/Articles/_resampled/ScaleWidthWzgwMF0/ebay-authenticity-guarantee-fine-jewelry.jpg'),
+    ]
+    media_group_videos = [
+        InputMediaVideo(media=f"{url}") for url in get_static_videos(product.product_uuid)
+    ]
+    for url in media_group_videos:
+        print(url)
+    await callback.message.answer_media_group(media=media_group_videos)
+    await callback.message.answer_media_group(media=media_group_photos)
+    await callback.message.answer(text='Кликните <Назад>, чтобы вернуться в корзину,',
+                                  reply_markup=InlineKeyboardMarkup(
+                                      inline_keyboard=[[InlineKeyboardButton(text='Назад',
+                                                                             callback_data=CallbackFactoryCartProductSwap(
+                                                                                 user_id=user_id,
+                                                                                 direction='>>',
+                                                                                 index=index,
+                                                                                 timestamp=datetime.utcnow().strftime(
+                                                                                     '%d-%m-%y %H-%M')
 
+                                                                             ).pack())]]))
 
+    await callback.answer()
 
 
 @router.callback_query(CallbackFactoryCartProductSwap.filter())
 async def process_product_cart_swap(callback: CallbackQuery, callback_data: CallbackFactoryCartProductSwap):
     print('inside process_product_cart_swap')
     current_index = int(callback_data.index)
-    product = cart[callback_data.user_id][current_index]
     user_id = callback_data.user_id
     print(current_index)
     print(cart[user_id])
@@ -153,13 +184,12 @@ async def process_product_cart_swap(callback: CallbackQuery, callback_data: Call
     elif callback_data.direction == '>>':
         if current_index == len(cart[user_id]):
             return await callback.answer('Вы уже на последней странице')
-
+    product = cart[callback_data.user_id][current_index]
     await send_product_card_cart_item(update=callback,
                                       kb=create_cart_kb,
                                       index=current_index,
                                       product=product,
                                       callback_data=callback_data)
-
 
     print('finished process_product_cart_swap')
     await callback.answer()
