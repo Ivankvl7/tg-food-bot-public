@@ -9,7 +9,7 @@ router: Router = Router()
 async def processing_non_defined_requests(callback: CallbackQuery):
     print('processing_non_defined_requests')
     print(f"callback_data = {callback.data}")
-    await callback.answer()
+    await callback.answer('Кнопка неактивна')
 
 
 @router.message()

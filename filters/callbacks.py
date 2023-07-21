@@ -3,6 +3,11 @@ from datetime import datetime
 import functools
 
 
+class CallbackFactoryWindowClose(CallbackData, prefix='start_page'):
+    user_id: int | str
+    timestamp: str
+
+
 # CallbackFactory for categories buttons
 class CallbackFactoryCategories(CallbackData, prefix='c'):
     user_id: int | str
@@ -62,5 +67,45 @@ class CallbackFactoryCartProductSwap(CallbackData, prefix='cart'):
 
 class CallbackFactoryQuantityChange(CallbackData, prefix='quantity_change'):
     action: str
+    index: str | int
+    user_id: int | str
+    timestamp: str
+
+
+class CallbackFactoryFavoriteProductsSwap(CallbackData, prefix='fav_g'):
+    user_id: int | str
+    direction: str
+    index: str | int
+    timestamp: str
+
+
+class CallbackFactoryDeleteFromFavorite(CallbackData, prefix='fav_del'):
+    user_id: int | str
+    index: str | int
+    timestamp: str
+
+
+class CallbackFactoryAddToCartFromFavorite(CallbackData, prefix='fav_cart_add'):
+    user_id: int | str
+    index: str | int
+    timestamp: str
+
+
+class CallbackFactoryOrderConfirmation(CallbackData, prefix='order_confirm'):
+    user_id: int | str
+    timestamp: str
+
+
+class CallbackFactoryNameInput(CallbackData, prefix='name_input'):
+    user_id: int | str
+    timestamp: str
+
+
+class CallbackFactorTerminateConfirmation(CallbackData, prefix='terminate_confo'):
+    user_id: int | str
+    timestamp: str
+
+
+class CallbackFactoryQuickConfirmation(CallbackData, prefix='quick_confirm'):
     user_id: int | str
     timestamp: str

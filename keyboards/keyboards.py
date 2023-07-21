@@ -6,11 +6,14 @@ from datetime import datetime
 from lexicon.LEXICON import categories_uuid
 from filters.callbacks import CallbackFactoryCategories, CallbackFactoryProductDetails, CallbackFactoryGoods, \
     CallbackFactoryStepBack, CallbackFactoryAddToCart, CallbackFactoryAddToFavorite, CallbackFactoryFinalizeOrder, \
-    CallbackFactoryCartProductSwap, CallbackFactoryQuantityChange, CallbackFactoryProductDetailsFromCart
+    CallbackFactoryCartProductSwap, CallbackFactoryQuantityChange, CallbackFactoryProductDetailsFromCart, \
+    CallbackFactoryFavoriteProductsSwap, CallbackFactoryWindowClose, CallbackFactoryDeleteFromFavorite, \
+    CallbackFactoryOrderConfirmation, CallbackFactorTerminateConfirmation, CallbackFactoryQuickConfirmation
 from models.methods import get_categories, get_first_product, get_previous_product_uuid, get_next_product_uuid, \
     get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id
 from typing import Sequence, Any
-from database.tmp_database import cart
+from database.tmp_database import cart, favorite_products
+from aiogram.fsm.context import FSMContext
 
 
 def static_common_buttons_menu(**keyboard_options) -> ReplyKeyboardMarkup:
@@ -43,6 +46,11 @@ def create_categories_kb(update: CallbackQuery | Message, **kwargs):
                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                   ).pack())
              for row in categories])
+    # kb.add(*[InlineKeyboardButton(text='Назад',
+    #                               callback_data=CallbackFactoryStartPage(
+    #                                   user_id=user_id,
+    #                                   timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+    #                               ).pack())])
     kb.adjust(1, repeat=True)
     return kb.as_markup(**kwargs)
 
@@ -170,7 +178,11 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
     right_index = index + 1
 
     button00 = InlineKeyboardButton(text='Перейти к подтверждению заказа',
-                                    callback_data='confirm')
+                                    callback_data=CallbackFactoryOrderConfirmation(
+                                        user_id=user_id,
+                                        timestamp=datetime.utcnow().strftime(
+                                            '%d-%m-%y %H-%M')
+                                    ).pack())
     button0 = InlineKeyboardButton(text='Подробнее о товаре',
                                    callback_data=CallbackFactoryProductDetailsFromCart(
                                        user_id=callback_data.user_id,
@@ -182,6 +194,7 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
     button1 = InlineKeyboardButton(text='-',
                                    callback_data=CallbackFactoryQuantityChange(
                                        action='-',
+                                       index=index,
                                        user_id=user_id,
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                    ).pack())
@@ -191,6 +204,7 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
     button3 = InlineKeyboardButton(text='+',
                                    callback_data=CallbackFactoryQuantityChange(
                                        action='+',
+                                       index=index,
                                        user_id=user_id,
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                    ).pack())
@@ -210,8 +224,8 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
                                        index=right_index,
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                    ).pack())
-    button7 = InlineKeyboardButton(text='Назад',
-                                   callback_data=CallbackFactoryGoods(
+    button7 = InlineKeyboardButton(text='Закрыть',
+                                   callback_data=CallbackFactoryWindowClose(
                                        user_id=user_id,
                                        uuid=product_uuid,
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
@@ -219,3 +233,94 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
     kb.add(button0, button00, button1, button2, button3, button4, button5, button6, button7)
     kb.adjust(1, 1, 3, 3)
     return kb.as_markup()
+
+
+def create_favorite_goods_kb(update: Message | CallbackQuery, index: int | str):
+    if isinstance(index, str):
+        index = int(index)
+    kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    user_id = update.from_user.id
+    left_index = index - 1
+    right_index = index + 1
+    product = favorite_products[user_id][index]
+    button00 = InlineKeyboardButton(text='Подробнее о товаре',
+                                    callback_data=CallbackFactoryProductDetailsFromCart(
+                                        user_id=user_id,
+                                        index=index,
+                                        timestamp=datetime.utcnow().strftime(
+                                            '%d-%m-%y %H-%M')
+                                    ).pack()
+                                    )
+    button0 = InlineKeyboardButton(text='Удалить из избранного',
+                                   callback_data=CallbackFactoryDeleteFromFavorite(
+                                       user_id=user_id,
+                                       index=index,
+                                       timestamp=datetime.utcnow().strftime(
+                                           '%d-%m-%y %H-%M')
+                                   ).pack()
+                                   )
+    button1 = InlineKeyboardButton(text='Добавить в корзину',
+                                   callback_data=CallbackFactoryAddToCart(
+                                       user_id=user_id,
+                                       uuid=product.product_uuid,
+                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+                                   ).pack())
+    button2 = InlineKeyboardButton(text='<<',
+                                   callback_data=CallbackFactoryFavoriteProductsSwap(
+                                       user_id=user_id,
+                                       direction='<<',
+                                       index=left_index,
+                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+                                   ).pack())
+    button3 = InlineKeyboardButton(text=f"{index + 1} / {len(favorite_products[user_id])}",
+                                   callback_data='non_active_button', )
+    button4 = InlineKeyboardButton(text='>>',
+                                   callback_data=CallbackFactoryFavoriteProductsSwap(
+                                       user_id=user_id,
+                                       direction='>>',
+                                       index=right_index,
+                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+                                   ).pack())
+    button5 = InlineKeyboardButton(text='Закрыть',
+                                   callback_data=CallbackFactoryWindowClose(
+                                       user_id=user_id,
+                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+                                   ).pack())
+    kb.add(button00, button0, button1, button2, button3, button4, button5)
+    kb.adjust(1, 1, 1, 3)
+    return kb.as_markup()
+
+
+def close_window_button(text: str,
+                        update: CallbackQuery | Message,
+                        state: FSMContext | None = None,
+                        quick_confo: bool = False):
+    if isinstance(update, CallbackQuery):
+        user_id = update.message.chat.id
+    else:
+        user_id = update.chat.id
+    if state:
+        callback_data = CallbackFactorTerminateConfirmation(
+            user_id=user_id,
+            timestamp=datetime.utcnow().strftime(
+                '%d-%m-%y %H-%M')
+        ).pack()
+    else:
+        callback_data = CallbackFactoryWindowClose(
+            user_id=user_id,
+            timestamp=datetime.utcnow().strftime(
+                '%d-%m-%y %H-%M')
+        ).pack()
+    kb = [[InlineKeyboardButton(
+        text=text,
+        callback_data=callback_data)]]
+    if quick_confo is True:
+        kb.append([InlineKeyboardButton(
+            text='Подтвердить мгновенно',
+            callback_data=CallbackFactoryQuickConfirmation(
+                user_id=user_id,
+                timestamp=datetime.utcnow().strftime(
+                    '%d-%m-%y %H-%M')).pack())])
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=kb)

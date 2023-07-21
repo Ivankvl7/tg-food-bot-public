@@ -1,9 +1,11 @@
 from database.database import DBInstance
-from sqlalchemy import Table, select, Select, MetaData, Result, Row, func
+from sqlalchemy import Table, select, Select, MetaData, Result, Row, func, Insert, insert, Update, update, join
 from sqlalchemy.orm import Session, Query
-from typing import Sequence
+from typing import Sequence, Any
 from lexicon.LEXICON import product_columns_mapper
 from sqlalchemy.sql.expression import Subquery, CTE
+from utils.order_items import CartItem
+from datetime import datetime
 
 
 def categories_products_cte() -> CTE:
@@ -67,11 +69,11 @@ def get_category_uuid_by_product_uuid(product_uuid: str | int = None) -> str | i
 
 
 def products_filtered_by_category_and_numbered(product_uuid: str | int) -> CTE:
-    with DBInstance.get_session() as session:
-        cte: CTE = categories_products_cte()
-        cte_new: CTE = select(func.row_number().over(order_by=cte.c.product_id).label('num_id'),
-                              cte).where(
-            cte.c.category_uuid == get_category_uuid_by_product_uuid(product_uuid)).cte()
+    cte: CTE = categories_products_cte()
+    cte_new: CTE = select(func.row_number().over(order_by=cte.c.product_id).label('num_id'),
+                          cte).where(
+        cte.c.category_uuid == get_category_uuid_by_product_uuid(product_uuid)).cte()
+
     return cte_new
 
 
@@ -83,11 +85,11 @@ def get_current_product_num_id(product_uuid: str | int) -> str | int:
     return data.scalar()
 
 
-def get_next_product_uuid(current_product_uuid: str | int) -> str | int:
+def get_next_product_uuid(current_product_uuid: str | int) -> str | int | None:
     with DBInstance.get_session() as session:
         if get_current_product_num_id(current_product_uuid) == get_max_product_id(
                 get_category_uuid_by_product_uuid(current_product_uuid)):
-            return current_product_uuid
+            return 'not allowed'
         cte: CTE = products_filtered_by_category_and_numbered(current_product_uuid)
         query: Select = select(cte.c.product_uuid).where(
             cte.c.num_id == get_current_product_num_id(current_product_uuid) + 1)
@@ -95,10 +97,10 @@ def get_next_product_uuid(current_product_uuid: str | int) -> str | int:
     return res.scalar()
 
 
-def get_previous_product_uuid(current_product_uuid: str | int) -> str | int:
+def get_previous_product_uuid(current_product_uuid: str | int) -> str | int | None:
     with DBInstance.get_session() as session:
         if get_current_product_num_id(current_product_uuid) == 1:
-            return current_product_uuid
+            return 'not allowed'
         cte: CTE = products_filtered_by_category_and_numbered(current_product_uuid)
         query: Select = select(cte.c.product_uuid).where(
             cte.c.num_id == get_current_product_num_id(current_product_uuid) - 1)
@@ -143,3 +145,121 @@ def get_category(category_uuid: str | int):
         query: Select = select(categories.c.category_name).where(categories.c.category_uuid == category_uuid)
         data: Result = session.execute(query)
     return data.scalar()
+
+
+def select_last_or_first_in_category_or_none(product_uuid: str | int, which_one='first'):
+    with DBInstance.get_session() as session:
+        cte: CTE = products_filtered_by_category_and_numbered(product_uuid=product_uuid)
+        query: Select = select(cte.c.num_id).where(cte.c.product_uuid == product_uuid)
+        if which_one == 'first':
+            num_id: int = int(session.execute(query).scalar()) - 1
+        else:
+            num_id: int = int(session.execute(query).scalar()) + 1
+        query2: Select = select(cte.c.product_uuid).where(cte.c.num_id == num_id)
+        res: Result = session.execute(query2)
+    return res.one_or_none()
+
+
+# print(select_last_or_first_in_category_or_none('cf9f9f38-d7a1-4a72-8fb4-7bc19f5c41dd', which_one='last'))
+
+def get_user_orders(user_id: str | int):
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        orders: Table = Table('orders', metadata)
+        users: Table = Table('users', metadata)
+        products: Table = Table('products', metadata)
+        order_status: Table = Table('order_status', metadata)
+        query = select('*').select_from(
+            join(orders, products).join(users).join(order_status)).where(users.c.telegram_id == user_id)
+
+        data: Sequence[Row[tuple | Any]] = session.execute(query).all()
+    return data
+
+
+def get_user_id_by_tg_id(user_tg_id: str | int):
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        users: Table = Table('users', metadata)
+        user_id: int = session.execute(select(users.c.user_id).where(users.c.telegram_id == user_tg_id)).scalar()
+    return user_id
+
+
+def get_user_by_tg_id(user_tg_id: str | int):
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        users: Table = Table('users', metadata)
+        user_data: Row = session.execute(select(users).where(users.c.telegram_id == user_tg_id)).one()
+    return user_data
+
+
+def add_order_to_db(user_tg_id: int, user_cart: list[CartItem]):
+    def get_product_id(session: Session, metadata: MetaData, product_uuid: str | int) -> int:
+        with session as s:
+            products: Table = Table('products', metadata)
+            query: Select = select(products.c.product_id).where(products.c.product_uuid == product_uuid)
+            return session.execute(query).scalar()
+
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        orders: Table = Table('orders', metadata)
+        user_id: int = get_user_id_by_tg_id(user_tg_id=user_tg_id)
+        for item in user_cart:
+            query: Insert = insert(orders).values(
+                user_id=user_id,
+                product_id=get_product_id(session=session,
+                                          metadata=metadata,
+                                          product_uuid=item.product_uuid),
+                order_start_date=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                quantity=item.quantity,
+                order_status_id=1
+            )
+            session.execute(query)
+            session.commit()
+
+
+def add_user_to_db(
+        action: str,
+        user_tg_id: int,
+        username: str,
+        first_name: str,
+        last_name: str,
+        phone: str,
+        age: int,
+        email: str,
+        address: str,
+        user_type_id: int = 3):
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        users_table: Table = Table('users', metadata)
+        if action == 'add':
+            query: Insert = insert(users_table).values(telegram_id=user_tg_id,
+                                                       username=username,
+                                                       first_name=first_name,
+                                                       last_name=last_name,
+                                                       user_type_id=user_type_id,
+                                                       phone=phone,
+                                                       age=age,
+                                                       email=email,
+                                                       address=address
+                                                       )
+        else:
+            query: Update = update(users_table).values(telegram_id=user_tg_id,
+                                                       username=username,
+                                                       first_name=first_name,
+                                                       last_name=last_name,
+                                                       user_type_id=user_type_id,
+                                                       phone=phone,
+                                                       age=age,
+                                                       email=email,
+                                                       address=address
+                                                       ).where(users_table.c.telegram_id == user_tg_id)
+        session.execute(query)
+        session.commit()
+
+
+def get_user_tg_ids_from_db():
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        users: Table = Table('users', metadata)
+        users_tg_ids: list[int] = [item.telegram_id for item in session.execute(select(users.c.telegram_id)).all()]
+    return users_tg_ids
