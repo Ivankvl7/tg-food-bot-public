@@ -329,37 +329,45 @@ async def process_my_orders_button(message: Message):
                          parse_mode='HTML')
 
 
-def define_appropriate_lengths(cart_items: list[CartItem | Row], mapper: dict) -> int:
+def define_appropriate_lengths(cart_items: list[CartItem | Row], mapper: dict) -> list[int]:
     final_length = []
     tmp_lengths = []
     for attribute in mapper:
         attributes_list = [str(getattr(item, attribute)) for item in cart_items]
         max_length = len(max(attributes_list, key=len))
         tmp_lengths.append(max_length)
-    for pair in zip([len(item) for item in list(mapper.values())], tmp_lengths):
-        final_length.append(max(pair))
-    return max(final_length)
+    comparatabe = list(zip([len(item) for item in list(mapper.values())], tmp_lengths))
+    for index in range(len(comparatabe)):
+        final_length.append(max(comparatabe[index]))
+        print(final_length)
+    order_sum = str(PriceRepresentation(num=sum([item.price.num * int(item.quantity) for item in cart_items]),
+                                        unit='руб.'))
+    final_length[-2] = max(len(order_sum), final_length[-2])
+    return final_length
 
 
 def print_out_formatted_row(attribute_names: list, cart_items: list, user_id: str | int, mapper: dict) -> str:
     rows = []
     row_elements = []
-    length = max(define_appropriate_lengths(cart_items=cart_items,
-                                            mapper=mapper), len('Итого'))
+    length = define_appropriate_lengths(cart_items=cart_items,
+                                        mapper=mapper)
     for index in range(len(attribute_names)):
-        row_elements.append(f"{attribute_names[index]}".ljust(length))
+        row_elements.append(f"{attribute_names[index]}".ljust(length[index]))
     rows.append(f"<pre>{' | '.join(row_elements)}</pre>")
 
     row_elements.clear()
     for item in cart_items:
-        for attribute in mapper:
-            row_elements.append(f"{getattr(item, attribute)}".ljust(length))
+        for index, attribute in enumerate(list(mapper.keys())):
+            row_elements.append(f"{getattr(item, attribute)}".ljust(length[index]))
         rows.append(f"<pre>{' | '.join(row_elements)}</pre>")
         row_elements.clear()
     order_sum = str(PriceRepresentation(num=sum([item.price.num * int(item.quantity) for item in cart_items]),
                                         unit='руб.'))
+    final_row = [''.ljust(index) for index in length]
+    final_row[-3] = 'Итого:'.ljust(length[-3])
+    final_row[-2] = order_sum.ljust(length[-2])
     rows.append(
-        f"<pre>{' | '.join([''.ljust(length), 'Итого:'.ljust(length), order_sum.ljust(length), ''.ljust(length)])}</pre>")
+        f"<pre>{' | '.join(final_row)}</pre>")
     return '\n'.join(rows)
 
 
@@ -409,6 +417,7 @@ async def process_input_name(callback: CallbackQuery,
         return await callback.answer('Действие невозможно', show_alert=True)
     text = 'Введите ваше имя в формате Имя Фамилия, \nнапример: <strong>Федор Достоевский</strong>\n'
     quick_confo = False
+    user_profile = UserProfile()
     if user_id in get_user_tg_ids_from_db():
         print('changin text to broaden variant')
         text = f'Я вижу, что вы уже оформляли у нас заказ и вводили запрашиваемые данные, ' \
@@ -416,11 +425,10 @@ async def process_input_name(callback: CallbackQuery,
                'Заказ будет оформлен на ваш профиль \n\n' \
                'Если данные поменялись, то введите их заново. \n\n' \
                'Введите ваше имя в формате Имя Фамилия, \nнапример: <strong>Федор Достоевский</strong>\n\n'
-    quick_confo = True
-    user_db_data = get_user_by_tg_id(user_id)
-    user_profile = UserProfile()
-    for key in user_profile.__dict__:
-        user_profile.__dict__[key] = getattr(user_db_data, key)
+        quick_confo = True
+        user_db_data = get_user_by_tg_id(user_id)
+        for key in user_profile.__dict__:
+            user_profile.__dict__[key] = getattr(user_db_data, key)
     user_profiles[user_id] = user_profile
     print(user_id)
     print(get_user_tg_ids_from_db())
@@ -434,9 +442,10 @@ async def process_input_name(callback: CallbackQuery,
                                          quick_confo=quick_confo))
     print(await state.get_state())
     await state.set_state(FSMOrderConfirmation.input_name)
+    await callback.answer()
 
 
-@router.message(F.text.regexp(re.compile(r'\w+ \w+')), FSMOrderConfirmation.input_name)
+@router.message(F.text.regexp(re.compile(r'\w+ \w+ *')), FSMOrderConfirmation.input_name)
 async def process_input_name_successful(message: Message, state: FSMContext):
     first_name, last_name = message.text.split()
     user_profile = UserProfile()
