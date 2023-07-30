@@ -15,11 +15,11 @@ from lexicon.LEXICON import product_columns_mapper, order_summary_mapper, order_
 from middlewares.throttling import TimingMiddleware, IdMiddleware
 from sqlalchemy import Row
 from utils.utils import send_product_card, send_product_card_cart_item, send_product_card_favorite_items
-from models.methods import get_product, get_static_videos, get_category_uuid_by_product_uuid, get_category, \
+from database.methods.rel_db_methods import get_product, get_static_videos, get_category_uuid_by_product_uuid, get_category, \
     add_user_to_db, add_order_to_db, get_user_id_by_tg_id, get_user_orders, get_first_product, get_user_tg_ids_from_db, \
     get_user_by_tg_id
 from database.tmp_database import cart, favorite_products
-from utils.order_items import CartItem, PriceRepresentation, UserProfile, ItemListedInUserOrders
+from models.models import CartItem, PriceRepresentation, UserProfile, ItemListedInUserOrders
 from aiogram.fsm.context import FSMContext
 from states.user_states import FSMOrderConfirmation
 from database.tmp_database import user_profiles
@@ -98,8 +98,8 @@ async def process_detalization_button(callback: CallbackQuery, callback_data: Ca
 
 @router.callback_query(CallbackFactoryAddToCart.filter())
 async def process_add_to_cart_button(callback: CallbackQuery, callback_data: CallbackFactoryAddToCart):
-    user_id = callback.from_user.id
-    product = get_product(callback_data.uuid)
+    user_id: str | int = callback.from_user.id
+    product: Row = get_product(callback_data.uuid)
     if not cart.get(user_id, []):
         cart[user_id] = list()
     item = CartItem(

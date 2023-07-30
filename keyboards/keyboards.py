@@ -1,17 +1,16 @@
 from aiogram.utils.keyboard import KeyboardButton, ReplyKeyboardBuilder, InlineKeyboardButton, InlineKeyboardBuilder, \
     ReplyKeyboardMarkup, InlineKeyboardMarkup
-from lexicon.LEXICON import pagination_buttons, product_action_buttons, special_buttons, static_keyboard
-from aiogram.types import TelegramObject, Message, CallbackQuery
+from lexicon.LEXICON import static_keyboard
+from aiogram.types import Message, CallbackQuery
 from datetime import datetime
-from lexicon.LEXICON import categories_uuid
 from filters.callbacks import CallbackFactoryCategories, CallbackFactoryProductDetails, CallbackFactoryGoods, \
     CallbackFactoryStepBack, CallbackFactoryAddToCart, CallbackFactoryAddToFavorite, CallbackFactoryFinalizeOrder, \
     CallbackFactoryCartProductSwap, CallbackFactoryQuantityChange, CallbackFactoryProductDetailsFromCart, \
     CallbackFactoryFavoriteProductsSwap, CallbackFactoryWindowClose, CallbackFactoryDeleteFromFavorite, \
     CallbackFactoryOrderConfirmation, CallbackFactorTerminateConfirmation, CallbackFactoryQuickConfirmation
-from models.methods import get_categories, get_first_product, get_previous_product_uuid, get_next_product_uuid, \
+from database.methods.rel_db_methods import get_categories, get_first_product, get_previous_product_uuid, get_next_product_uuid, \
     get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id
-from typing import Sequence, Any
+from typing import Sequence
 from database.tmp_database import cart, favorite_products
 from aiogram.fsm.context import FSMContext
 

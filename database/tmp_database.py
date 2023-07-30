@@ -1,7 +1,7 @@
 from aiogram.fsm.state import State
-from utils.order_items import CartItem
-from utils.order_items import PriceRepresentation
-from utils.order_items import UserProfile
+from models.models import CartItem
+from models.models import PriceRepresentation
+from models.models import UserProfile
 
 # cart: dict[str | int, list] = {593908084: [CartItem(product_name='Silver Necklace',
 #                                                     category_name='Necklaces',

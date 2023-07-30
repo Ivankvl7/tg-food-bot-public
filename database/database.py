@@ -1,6 +1,8 @@
 from sqlalchemy import create_engine, Engine, MetaData, Connection
 from sqlalchemy.orm import Session
+from config_data.config import load_redis_config
 import redis
+import os
 
 
 class DBInstance:
@@ -31,10 +33,18 @@ class DBInstance:
 
 
 class RedisCache:
-    __cache = None
+    __config = None
+    __env_path = os.path.dirname(os.getcwd()) + '/.env'
 
-    @classmethod
-    def get_cache(cls):
-        if cls.__cache is None:
-            cls.__cache = redis.Redis(host='localhost', port=6379, db=0)
-        return cls.__cache
+    def __new__(cls, *args, **kwargs):
+        if cls.__config is None:
+            cls.__config = load_redis_config(cls.__env_path)
+        return super().__new__(cls)
+
+    def get_cache(self):
+        return redis.Redis(host=self.__class__.__config.host,
+                           port=self.__class__.__config.port,
+                           username=self.__class__.__config.user,
+                           password=self.__class__.__config.password,
+                           decode_responses=True)
+

@@ -17,8 +17,6 @@ from aiogram.fsm.context import FSMContext
 from states.user_states import FSMOrderConfirmation
 from aiogram.fsm.state import default_state
 
-
-
 # creating router to register local handlers
 router: Router = Router()
 

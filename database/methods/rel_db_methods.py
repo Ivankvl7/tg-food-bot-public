@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session, Query
 from typing import Sequence, Any
 from lexicon.LEXICON import product_columns_mapper
 from sqlalchemy.sql.expression import Subquery, CTE
-from utils.order_items import CartItem
+from models.models import CartItem, PriceRepresentation
 from datetime import datetime
+import random
 
 
 def categories_products_cte() -> CTE:
@@ -44,7 +45,6 @@ def get_first_product(category_uuid: int | str) -> Row:
             categories.c.category_name,
             products.c.price,
             products.c.description,
-            products.c.image_url,
             products.c.product_uuid).join_from(products, categories).where(
             categories.c.category_uuid == category_uuid)
         result: Result = session.execute(query)
@@ -263,3 +263,23 @@ def get_user_tg_ids_from_db():
         users: Table = Table('users', metadata)
         users_tg_ids: list[int] = [item.telegram_id for item in session.execute(select(users.c.telegram_id)).all()]
     return users_tg_ids
+
+
+def from_product_to_cart_item(product: Row) -> CartItem:
+    return CartItem(
+        product_name=product.product_name,
+        category_name=get_category(get_category_uuid_by_product_uuid(product.product_uuid)),
+        description=product.description,
+        price=PriceRepresentation(product.price, 'руб.'),
+        quantity=1,
+        product_uuid=product.product_uuid,
+        article=product.article)
+
+
+def get_random_products(num: int) -> list[CartItem]:
+    with DBInstance.get_session() as session:
+        table: CTE = categories_products_cte()
+        ids: Sequence[Row] = session.execute(select(table.c.product_uuid)).all()
+        random_ids = [item.product_uuid for item in random.choices(ids, k=num)]
+    return random_ids
+
