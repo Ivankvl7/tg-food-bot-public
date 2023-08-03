@@ -20,10 +20,17 @@ class RedisKeySchema:
         self.prefix: str = prefix
 
     @prefixed_key
-    def get_cart_key(self, user_id: int | str) -> str:
-        return f"cart:{user_id}"
+    def get_cart_key(self, user_id: int) -> str:
+        return f"cart_hash:{user_id}"
 
     @prefixed_key
-    def get_favorite_key(self, user_id: int | str) -> str:
+    def get_favorite_key(self, user_id: int) -> str:
         return f"favorite:{user_id}"
 
+    @prefixed_key
+    def get_user_profile_key(self, user_id: int):
+        return f"user_profile:{user_id}"
+
+    @prefixed_key
+    def get_selected_device_key(self, user_id: int):
+        return f"user_device:{user_id}"

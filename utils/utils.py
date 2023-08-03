@@ -35,7 +35,7 @@ async def send_product_card_cart_item(update: CallbackQuery | Message,
                                       kb: Callable,
                                       product: Row,
                                       callback_data: cffo | cfcps,
-                                      index: int
+                                      index: int,
                                       ):
     if isinstance(update, CallbackQuery):
         new_update = update.message

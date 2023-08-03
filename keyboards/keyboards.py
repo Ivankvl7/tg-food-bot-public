@@ -7,17 +7,20 @@ from filters.callbacks import CallbackFactoryCategories, CallbackFactoryProductD
     CallbackFactoryStepBack, CallbackFactoryAddToCart, CallbackFactoryAddToFavorite, CallbackFactoryFinalizeOrder, \
     CallbackFactoryCartProductSwap, CallbackFactoryQuantityChange, CallbackFactoryProductDetailsFromCart, \
     CallbackFactoryFavoriteProductsSwap, CallbackFactoryWindowClose, CallbackFactoryDeleteFromFavorite, \
-    CallbackFactoryOrderConfirmation, CallbackFactorTerminateConfirmation, CallbackFactoryQuickConfirmation
-from database.methods.rel_db_methods import get_categories, get_first_product, get_previous_product_uuid, get_next_product_uuid, \
-    get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id
+    CallbackFactoryOrderConfirmation, CallbackFactorTerminateConfirmation, CallbackFactoryQuickConfirmation, \
+    CallbackFactoryGetProductDetailsFromFavorite, CallbackFactoryDeviceSelection
+from database.methods.rel_db_methods import get_categories, get_first_product, get_previous_product_uuid, \
+    get_next_product_uuid, get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id, \
+    get_product
 from typing import Sequence
-from database.tmp_database import cart, favorite_products
 from aiogram.fsm.context import FSMContext
+from database.methods.redis_methods import get_user_cart, add_to_cart, get_favorite
+from models.models import SelectedDevice
 
 
 def static_common_buttons_menu(**keyboard_options) -> ReplyKeyboardMarkup:
-    # creating buttons for main page keyboard
-    buttons: list[KeyboardButton] = [KeyboardButton(text=static_keyboard[key]) for key in static_keyboard.keys()]
+    # creating buttons for persistent kb
+    buttons: list[KeyboardButton] = [KeyboardButton(text=static_keyboard[key]) for key in static_keyboard]
 
     # creating kb builder
     static_common_menu: ReplyKeyboardBuilder = ReplyKeyboardBuilder()
@@ -168,13 +171,11 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
     user_id = callback_data.user_id
     index = int(index)
-    if isinstance(callback_data, CallbackFactoryFinalizeOrder):
-        product_uuid = callback_data.uuid
-    else:
-
-        product_uuid = cart[callback_data.user_id][index].product_uuid
+    user_cart = get_user_cart(user_id)
+    product_uuid = list(user_cart.keys())[index]
     left_index = index - 1
     right_index = index + 1
+    quantity = user_cart[product_uuid]
 
     button00 = InlineKeyboardButton(text='Перейти к подтверждению заказа',
                                     callback_data=CallbackFactoryOrderConfirmation(
@@ -198,7 +199,7 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                    ).pack())
 
-    button2 = InlineKeyboardButton(text=f"В корзине: {cart[user_id][index].quantity}",
+    button2 = InlineKeyboardButton(text=f"В корзине: {quantity}",
                                    callback_data='non_active_button', )
     button3 = InlineKeyboardButton(text='+',
                                    callback_data=CallbackFactoryQuantityChange(
@@ -214,7 +215,7 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
                                        index=left_index,
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                    ).pack())
-    button5 = InlineKeyboardButton(text=f"{index + 1} / {len(cart[user_id])}",
+    button5 = InlineKeyboardButton(text=f"{index + 1} / {len(user_cart.keys())}",
                                    callback_data='non_active_button', )
     button6 = InlineKeyboardButton(text='>>',
                                    callback_data=CallbackFactoryCartProductSwap(
@@ -238,12 +239,17 @@ def create_favorite_goods_kb(update: Message | CallbackQuery, index: int | str):
     if isinstance(index, str):
         index = int(index)
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
-    user_id = update.from_user.id
+    if isinstance(update, CallbackQuery):
+        user_id = update.message.chat.id
+    else:
+        user_id = update.chat.id
+    user_favorite = list(get_favorite(user_id))
+
     left_index = index - 1
     right_index = index + 1
-    product = favorite_products[user_id][index]
+    product = get_product(user_favorite[index])
     button00 = InlineKeyboardButton(text='Подробнее о товаре',
-                                    callback_data=CallbackFactoryProductDetailsFromCart(
+                                    callback_data=CallbackFactoryGetProductDetailsFromFavorite(
                                         user_id=user_id,
                                         index=index,
                                         timestamp=datetime.utcnow().strftime(
@@ -271,7 +277,7 @@ def create_favorite_goods_kb(update: Message | CallbackQuery, index: int | str):
                                        index=left_index,
                                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                    ).pack())
-    button3 = InlineKeyboardButton(text=f"{index + 1} / {len(favorite_products[user_id])}",
+    button3 = InlineKeyboardButton(text=f"{index + 1} / {len(user_favorite)}",
                                    callback_data='non_active_button', )
     button4 = InlineKeyboardButton(text='>>',
                                    callback_data=CallbackFactoryFavoriteProductsSwap(
@@ -293,7 +299,7 @@ def create_favorite_goods_kb(update: Message | CallbackQuery, index: int | str):
 def close_window_button(text: str,
                         update: CallbackQuery | Message,
                         state: FSMContext | None = None,
-                        quick_confo: bool = False):
+                        quick_confo: bool = False) -> InlineKeyboardMarkup:
     if isinstance(update, CallbackQuery):
         user_id = update.message.chat.id
     else:
@@ -323,3 +329,26 @@ def close_window_button(text: str,
 
     return InlineKeyboardMarkup(
         inline_keyboard=kb)
+
+
+def create_device_selection_kb(user_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text=SelectedDevice.DESKTOP.value,
+                callback_data=CallbackFactoryDeviceSelection(
+                    user_id=user_id,
+                    device=SelectedDevice.DESKTOP.value,
+                    timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+                ).pack()
+            )],
+            [InlineKeyboardButton(
+                text=SelectedDevice.MOBILE_DEVICE.value,
+                callback_data=CallbackFactoryDeviceSelection(
+                    user_id=user_id,
+                    device=SelectedDevice.MOBILE_DEVICE.value,
+                    timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+                ).pack()
+            )]
+        ]
+    )

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 
 
 class PriceRepresentation:
@@ -20,6 +21,7 @@ class CartItem:
     quantity: int = field(hash=False)
     product_uuid: int | str
     article: int
+    order_number: int
 
 
 @dataclass
@@ -36,9 +38,14 @@ class UserProfile:
 
 @dataclass
 class ItemListedInUserOrders:
-    order_id: int
+    order_number: int
     order_date: str
     product_name: str
     quantity: int
     price: PriceRepresentation
     order_status: str
+
+
+class SelectedDevice(Enum):
+    DESKTOP = 'Desktop'
+    MOBILE_DEVICE = 'Mobile'

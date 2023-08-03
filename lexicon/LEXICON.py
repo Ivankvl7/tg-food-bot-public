@@ -27,6 +27,7 @@ static_keyboard: dict = {
     'clients_account': 'Мои заказы 📖',
     'favorite_products': 'Избранное ⭐️',
     'cart': 'Корзина 🛒',
+    'change_device': 'Изменить устройство 🖥 🔛📱',
     'help': 'Помощь 🆘'
 }
 
@@ -80,7 +81,7 @@ order_summary_mapper: dict[str, str] = {
 }
 
 order_listing_mapper: dict[str, int | str] = {
-    'order_id': 'Номер заказа',
+    'order_number': 'Номер заказа',
     'order_date': 'Дата заказа',
     'product_name': 'Наименование товара',
     'quantity': 'Количество',

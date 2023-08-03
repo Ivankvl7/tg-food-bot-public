@@ -1,6 +1,4 @@
 from aiogram.filters.callback_data import CallbackData
-from datetime import datetime
-import functools
 
 
 class CallbackFactoryWindowClose(CallbackData, prefix='start_page'):
@@ -108,4 +106,22 @@ class CallbackFactorTerminateConfirmation(CallbackData, prefix='terminate_confo'
 
 class CallbackFactoryQuickConfirmation(CallbackData, prefix='quick_confirm'):
     user_id: int | str
+    timestamp: str
+
+
+class CallbackFactoryGetProductDetailsFromFavorite(CallbackData, prefix='dets_fav'):
+    user_id: int
+    index: int
+    timestamp: str
+
+
+class CallbackFactoryBackToFavorite(CallbackData, prefix='back_to_fav'):
+    user_id: int
+    index: int
+    timestamp: str
+
+
+class CallbackFactoryDeviceSelection(CallbackData, prefix="sel_dev"):
+    user_id: int
+    device: str
     timestamp: str

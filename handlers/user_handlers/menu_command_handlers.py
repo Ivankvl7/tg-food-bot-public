@@ -1,24 +1,24 @@
 from datetime import datetime
-
-import aiogram
-from aiogram.types import Message
 from aiogram import Router, F
 from aiogram.filters import Command
 from keyboards.keyboards import static_common_buttons_menu, create_cart_kb
 from lexicon.LEXICON import command_handlers
 from aiogram.filters import Text, StateFilter
-from keyboards.keyboards import create_categories_kb, create_favorite_goods_kb
+from keyboards.keyboards import create_categories_kb, create_favorite_goods_kb, create_device_selection_kb
 from aiogram.types import Message, CallbackQuery
-from database.tmp_database import cart, favorite_products
 from utils.utils import send_product_card_cart_item, send_product_card_favorite_items
 from filters.callbacks import CallbackFactoryFinalizeOrder, CallbackFactoryWindowClose, \
-    CallbackFactoryDeleteFromFavorite, CallbackFactoryAddToCartFromFavorite, CallbackFactorTerminateConfirmation
+    CallbackFactorTerminateConfirmation
 from aiogram.fsm.context import FSMContext
-from states.user_states import FSMOrderConfirmation
 from aiogram.fsm.state import default_state
+from database.methods.redis_methods import get_user_cart, get_favorite
+from database.methods.rel_db_methods import get_product
+from middlewares.throttling import DeviceMiddleware
 
 # creating router to register local handlers
 router: Router = Router()
+router.callback_query.middleware(DeviceMiddleware())
+router.message.middleware((DeviceMiddleware()))
 
 
 @router.message(Command(commands=["start", "help", "payment", "delivery", "legal"]))
@@ -29,7 +29,6 @@ async def process_start_command(message: Message):
 
 
 @router.message(Text('Каталог 📕'))
-# @router.message(Command('catalog'))
 async def process_catalog_command(update: Message):
     print('inside catalog')
     print(update.json())
@@ -56,14 +55,13 @@ async def process_confo_termination(callback: CallbackQuery, state: FSMContext):
 
 @router.message(Text('Корзина 🛒'))
 async def process_cart_static_button(update: Message):
-    user_id = update.from_user.id
-
-    if user_id not in cart:
+    user_id = update.chat.id
+    user_cart = get_user_cart(user_id)
+    if not user_cart:
         return await update.answer('Корзина пуста. Попробуйте сначала что-нибудь туда добавить.',
                                    show_alert=True)
-
     else:
-        product = cart[user_id][0]
+        product = get_product(list(user_cart)[0])
         await send_product_card_cart_item(update=update,
                                           kb=create_cart_kb,
                                           product=product,
@@ -77,33 +75,20 @@ async def process_cart_static_button(update: Message):
 
 @router.message(Text('Избранное ⭐️'))
 async def process_favorite_goods_button(message: Message):
-    user_id = message.from_user.id
-    user_favorite_products = favorite_products.get(user_id, [])
-    if not user_favorite_products:
+    user_id = message.chat.id
+    user_favorite = get_favorite(user_id)
+    if not user_favorite:
         return await message.answer(text='В избранном еще ничего нету. Попробуйте что-нибудь туда добавить')
-    product = favorite_products[user_id][0]
+    product = get_product(list(user_favorite)[0])
     await send_product_card_favorite_items(update=message,
                                            kb=create_favorite_goods_kb,
                                            product=product)
 
 
-@router.callback_query(CallbackFactoryDeleteFromFavorite.filter())
-async def process_del_from_favorite_button(callback: CallbackQuery, callback_data: CallbackFactoryDeleteFromFavorite):
-    index = int(callback_data.index)
-    user_id = callback.from_user.id
-    user_favorite_products = favorite_products.get(user_id, [])
-    if not user_favorite_products:
-        return await callback.answer(text='В избранном ничего нет')
-    if len(user_favorite_products) == 1:
-        user_favorite_products.pop(index)
-        await callback.answer(text='В избранном больше ничего нет')
-        await callback.message.answer(text="Ниже представлены доступные категории товаров",
-                                      reply_markup=create_categories_kb(callback))
-    else:
-        user_favorite_products.pop(0)
-        product = favorite_products[user_id][0]
-        await send_product_card_favorite_items(update=callback,
-                                               kb=create_favorite_goods_kb,
-                                               product=product
-                                               )
-        await callback.answer()
+@router.message(Text('Изменить устройство 🖥 🔛📱'))
+async def process_change_device_button(message: Message):
+    user_id = message.chat.id
+    await message.answer(
+        text='Пожалуйста, выберите ваше текущее устройство',
+        reply_markup=create_device_selection_kb(user_id))
+

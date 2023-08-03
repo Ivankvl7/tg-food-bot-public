@@ -192,6 +192,17 @@ def get_user_by_tg_id(user_tg_id: str | int):
     return user_data
 
 
+def get_order_number() -> int:
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        orders: Table = Table('orders', metadata)
+        query: Select = select(func.max(orders.c.order_number))
+        res: Row = session.execute(query).one_or_none()
+    if not res[-1]:
+        return 1
+    return res[-1] + 1
+
+
 def add_order_to_db(user_tg_id: int, user_cart: list[CartItem]):
     def get_product_id(session: Session, metadata: MetaData, product_uuid: str | int) -> int:
         with session as s:
@@ -209,9 +220,11 @@ def add_order_to_db(user_tg_id: int, user_cart: list[CartItem]):
                 product_id=get_product_id(session=session,
                                           metadata=metadata,
                                           product_uuid=item.product_uuid),
-                order_start_date=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                order_start_date=datetime.utcnow().strftime('%Y-%m-%d'),
                 quantity=item.quantity,
-                order_status_id=1
+                order_status_id=1,
+                order_number=item.order_number,
+
             )
             session.execute(query)
             session.commit()
@@ -227,7 +240,8 @@ def add_user_to_db(
         age: int,
         email: str,
         address: str,
-        user_type_id: int = 3):
+        user_type_id: int = 3,
+        registration_date=datetime.now().strftime('%d-%m-%y')):
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
         users_table: Table = Table('users', metadata)
@@ -240,7 +254,8 @@ def add_user_to_db(
                                                        phone=phone,
                                                        age=age,
                                                        email=email,
-                                                       address=address
+                                                       address=address,
+                                                       registration_date=registration_date
                                                        )
         else:
             query: Update = update(users_table).values(telegram_id=user_tg_id,
@@ -251,7 +266,8 @@ def add_user_to_db(
                                                        phone=phone,
                                                        age=age,
                                                        email=email,
-                                                       address=address
+                                                       address=address,
+                                                       registration_date=registration_date
                                                        ).where(users_table.c.telegram_id == user_tg_id)
         session.execute(query)
         session.commit()
@@ -265,15 +281,16 @@ def get_user_tg_ids_from_db():
     return users_tg_ids
 
 
-def from_product_to_cart_item(product: Row) -> CartItem:
+def from_product_to_cart_item(order_number: int, product: Row, quantity=1) -> CartItem:
     return CartItem(
         product_name=product.product_name,
         category_name=get_category(get_category_uuid_by_product_uuid(product.product_uuid)),
         description=product.description,
         price=PriceRepresentation(product.price, 'руб.'),
-        quantity=1,
+        quantity=quantity,
         product_uuid=product.product_uuid,
-        article=product.article)
+        article=product.article,
+        order_number=order_number)
 
 
 def get_random_products(num: int) -> list[CartItem]:
@@ -283,3 +300,11 @@ def get_random_products(num: int) -> list[CartItem]:
         random_ids = [item.product_uuid for item in random.choices(ids, k=num)]
     return random_ids
 
+
+def get_user_fields(user_tg_id: int):
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        users: Table = Table('users', metadata)
+        query: Select = select(users).where(users.c.user_id == get_user_id_by_tg_id(user_tg_id))
+        data: Result = session.execute(query)
+    return data
