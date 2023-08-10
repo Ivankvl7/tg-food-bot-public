@@ -2,7 +2,7 @@ from datetime import datetime
 from aiogram.utils.keyboard import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import Router
 from aiogram.types import CallbackQuery, InputMediaPhoto, InputMediaVideo
-from keyboards.keyboards import create_cart_kb, create_categories_kb
+from keyboards.user_keyboards import create_cart_kb, create_categories_kb
 from filters.callbacks import CallbackFactoryAddToCart, CallbackFactoryFinalizeOrder, CallbackFactoryCartProductSwap, \
     CallbackFactoryQuantityChange, CallbackFactoryProductDetailsFromCart
 from lexicon.LEXICON import product_columns_mapper
@@ -11,6 +11,7 @@ from sqlalchemy import Row
 from utils.utils import send_product_card_cart_item
 from database.methods.rel_db_methods import get_product, get_static_videos
 from database.methods.redis_methods import add_to_cart, incr_cart_quantity, remove_item_from_cart, get_user_cart
+from aiogram.fsm.context import FSMContext
 
 # router to navigate catalog related requests
 router: Router = Router()
@@ -29,7 +30,8 @@ async def process_add_to_cart_button(callback: CallbackQuery, callback_data: Cal
 
 @router.callback_query(CallbackFactoryFinalizeOrder.filter())
 async def process_finalize_order_button(update: CallbackQuery,
-                                        callback_data: CallbackFactoryFinalizeOrder = None):
+                                        callback_data: CallbackFactoryFinalizeOrder,
+                                        ):
     print('inside process_finalize_order_button')
     user_id: str | int = update.message.chat.id
     user_cart: dict = get_user_cart(user_id)

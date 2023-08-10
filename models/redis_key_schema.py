@@ -34,3 +34,9 @@ class RedisKeySchema:
     @prefixed_key
     def get_selected_device_key(self, user_id: int):
         return f"user_device:{user_id}"
+
+    @prefixed_key
+    def get_new_product_attributes_key(self, user_id: int):
+        return f"new_product_admin:{user_id}"
+
+

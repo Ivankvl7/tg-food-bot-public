@@ -40,15 +40,17 @@ def get_first_product(category_uuid: int | str) -> Row:
         metadata = DBInstance.get_metadata()
         categories = Table('categories', metadata)
         products: Table = Table('products', metadata)
-        query: Select = select(
+        query: Subquery = select(
+            products.c.product_id,
             products.c.product_name,
             categories.c.category_name,
             products.c.price,
             products.c.description,
             products.c.product_uuid).join_from(products, categories).where(
-            categories.c.category_uuid == category_uuid)
-        result: Result = session.execute(query)
-        return result.first()
+            categories.c.category_uuid == category_uuid).subquery()
+        min_id: int = int(session.execute(func.min(query.c.product_id)).scalar())
+        res: Row = session.execute(select(query).where(query.c.product_id == min_id)).first()
+    return res
 
 
 def get_max_product_id(category_uuid: str | int) -> int | str:
@@ -56,6 +58,15 @@ def get_max_product_id(category_uuid: str | int) -> int | str:
         cte: CTE = categories_products_cte()
         query: Select = select(func.count("*")).select_from(cte).where(
             cte.c.category_uuid == category_uuid)
+        data: Result = session.execute(query)
+    return data.scalar()
+
+
+def get_max_product_id_by_cat_id(category_id: int) -> int | str:
+    with DBInstance.get_session() as session:
+        cte: CTE = categories_products_cte()
+        query: Select = select(func.count("*")).select_from(cte).where(
+            cte.c.category_id == category_id)
         data: Result = session.execute(query)
     return data.scalar()
 
@@ -162,15 +173,19 @@ def select_last_or_first_in_category_or_none(product_uuid: str | int, which_one=
 
 # print(select_last_or_first_in_category_or_none('cf9f9f38-d7a1-4a72-8fb4-7bc19f5c41dd', which_one='last'))
 
-def get_user_orders(user_id: str | int):
+def get_user_orders(user_id: str | int, admin_mode=False):
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
         orders: Table = Table('orders', metadata)
         users: Table = Table('users', metadata)
         products: Table = Table('products', metadata)
         order_status: Table = Table('order_status', metadata)
-        query = select('*').select_from(
-            join(orders, products).join(users).join(order_status)).where(users.c.telegram_id == user_id)
+        if admin_mode:
+            query: Select = select('*').select_from(
+                join(orders, products).join(users).join(order_status))
+        query: Select = select('*').select_from(
+            join(orders, products).join(users).join(order_status)).where(users.c.telegram_id == user_id,
+                                                                         order_status.c.order_status_id < 4)
 
         data: Sequence[Row[tuple | Any]] = session.execute(query).all()
     return data
@@ -220,7 +235,7 @@ def add_order_to_db(user_tg_id: int, user_cart: list[CartItem]):
                 product_id=get_product_id(session=session,
                                           metadata=metadata,
                                           product_uuid=item.product_uuid),
-                order_start_date=datetime.utcnow().strftime('%Y-%m-%d'),
+                order_start_date=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                 quantity=item.quantity,
                 order_status_id=1,
                 order_number=item.order_number,

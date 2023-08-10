@@ -15,13 +15,15 @@ from database.methods.rel_db_methods import get_categories, get_first_product, g
 from typing import Sequence
 from aiogram.fsm.context import FSMContext
 from database.methods.redis_methods import get_user_cart, add_to_cart, get_favorite
-from models.models import SelectedDevice
+from models.models import SelectedDevice, AdminStaticKb
 
 
-def static_common_buttons_menu(**keyboard_options) -> ReplyKeyboardMarkup:
+def static_common_buttons_menu(admin_mode=False, **keyboard_options) -> ReplyKeyboardMarkup:
+    # kb selection depending on user status
+    kb_button_names: dict = static_keyboard if not admin_mode else {item.name: item.value for item in AdminStaticKb}
+
     # creating buttons for persistent kb
-    buttons: list[KeyboardButton] = [KeyboardButton(text=static_keyboard[key]) for key in static_keyboard]
-
+    buttons: list[KeyboardButton] = [KeyboardButton(text=kb_button_names[key]) for key in kb_button_names]
     # creating kb builder
     static_common_menu: ReplyKeyboardBuilder = ReplyKeyboardBuilder()
 
@@ -133,16 +135,16 @@ def product_action_bar(update: CallbackQuery,
     return kb.as_markup()
 
 
-def create_detalisation_kb(callback_data: CallbackFactoryProductDetails):
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(
-                text='Добавить в корзину',
-                callback_data=CallbackFactoryAddToCart(
-                    user_id=callback_data.user_id,
-                    uuid=callback_data.uuid,
-                    timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
-                ).pack())],
+def create_detalisation_kb(callback_data: CallbackFactoryProductDetails, admin_mode=False):
+    buttons: list = []
+    if not admin_mode:
+        buttons: list = [[InlineKeyboardButton(
+            text='Добавить в корзину',
+            callback_data=CallbackFactoryAddToCart(
+                user_id=callback_data.user_id,
+                uuid=callback_data.uuid,
+                timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+            ).pack())],
             [InlineKeyboardButton(
                 text='Добавить в избранное',
                 callback_data=CallbackFactoryAddToFavorite(
@@ -156,15 +158,16 @@ def create_detalisation_kb(callback_data: CallbackFactoryProductDetails):
                     user_id=callback_data.user_id,
                     uuid=callback_data.uuid,
                     timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
-                ).pack())],
-            [InlineKeyboardButton(
-                text='Назад',
-                callback_data=CallbackFactoryGoods(
-                    user_id=callback_data.user_id,
-                    uuid=callback_data.uuid,
-                    timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
-                ).pack()),
-            ]])
+                ).pack())]]
+    buttons.append([InlineKeyboardButton(
+        text='Назад',
+        callback_data=CallbackFactoryGoods(
+            user_id=callback_data.user_id,
+            uuid=callback_data.uuid,
+            timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
+        ).pack())])
+    return InlineKeyboardMarkup(
+        inline_keyboard=buttons)
 
 
 def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | CallbackFactoryCartProductSwap):

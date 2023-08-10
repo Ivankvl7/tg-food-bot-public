@@ -4,7 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import F, Router
 from aiogram.filters import StateFilter
 from aiogram.types import CallbackQuery, Message
-from keyboards.keyboards import close_window_button, static_common_buttons_menu
+from keyboards.user_keyboards import close_window_button, static_common_buttons_menu
 from filters.callbacks import CallbackFactoryWindowClose, CallbackFactoryOrderConfirmation, CallbackFactoryNameInput, \
     CallbackFactoryQuickConfirmation
 from lexicon.LEXICON import order_summary_mapper

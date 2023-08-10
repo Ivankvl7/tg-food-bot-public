@@ -8,7 +8,7 @@ from database.methods.redis_methods import get_user_device, set_user_device
 from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
 from models.models import SelectedDevice
 from filters.callbacks import CallbackFactoryDeviceSelection
-from keyboards.keyboards import create_device_selection_kb
+from keyboards.user_keyboards import create_device_selection_kb
 
 
 class TimingMiddleware(BaseMiddleware):
@@ -39,7 +39,7 @@ class DeviceMiddleware(BaseMiddleware):
     async def __call__(
             self,
             handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
-            event: (CallbackQuery, Message),
+            event: CallbackQuery | Message,
             data: dict[str, Any]) -> Any:
         if isinstance(event, CallbackQuery):
             update = event.message
@@ -54,5 +54,24 @@ class DeviceMiddleware(BaseMiddleware):
                      "для вашего устройства формате",
                 reply_markup=create_device_selection_kb(user_id)
             )
+        result = await handler(event, data)
+        return result
+
+
+class AdminModeMiddleware(BaseMiddleware):
+    async def __call__(
+            self,
+            handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+            event: CallbackQuery | Message,
+            data: dict[str, Any]) -> Any:
+        from handlers.admin_handlers.initiate_admin_mode import get_admin_ids
+        if isinstance(event, CallbackQuery):
+            user_id = event.message.chat.id
+            update = event.message
+        else:
+            user_id = event.chat.id
+            update = event
+        if user_id not in get_admin_ids():
+            return await update.answer('В доступе отказано')
         result = await handler(event, data)
         return result

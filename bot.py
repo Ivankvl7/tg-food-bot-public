@@ -7,6 +7,7 @@ import logging
 from aiogram.fsm.storage.redis import Redis, RedisStorage
 from handlers.user_handlers import menu_command_handlers, catalog_handlers, cart_handlers, order_processing, \
     favorite_handlers, undefined_requests_handlers
+from handlers.admin_handlers import admin_catalog_handlers, admin_product_handlers, initiate_admin_mode
 
 
 # .env should be placed in the same directory as bot.py
@@ -31,6 +32,7 @@ async def main():
     dp.startup.register(main_commands_menu)
 
     # registering child routers
+    dp.include_routers(initiate_admin_mode.router, admin_catalog_handlers.router, admin_product_handlers.router)
     dp.include_routers(menu_command_handlers.router, catalog_handlers.router, cart_handlers.router,
                        order_processing.router, favorite_handlers.router, undefined_requests_handlers.router)
 

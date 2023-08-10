@@ -1,10 +1,10 @@
 from datetime import datetime
 from aiogram import Router, F
 from aiogram.filters import Command
-from keyboards.keyboards import static_common_buttons_menu, create_cart_kb
+from keyboards.user_keyboards import static_common_buttons_menu, create_cart_kb
 from lexicon.LEXICON import command_handlers
 from aiogram.filters import Text, StateFilter
-from keyboards.keyboards import create_categories_kb, create_favorite_goods_kb, create_device_selection_kb
+from keyboards.user_keyboards import create_categories_kb, create_favorite_goods_kb, create_device_selection_kb
 from aiogram.types import Message, CallbackQuery
 from utils.utils import send_product_card_cart_item, send_product_card_favorite_items
 from filters.callbacks import CallbackFactoryFinalizeOrder, CallbackFactoryWindowClose, \
@@ -14,6 +14,7 @@ from aiogram.fsm.state import default_state
 from database.methods.redis_methods import get_user_cart, get_favorite
 from database.methods.rel_db_methods import get_product
 from middlewares.throttling import DeviceMiddleware
+from aiogram.fsm.context import FSMContext
 
 # creating router to register local handlers
 router: Router = Router()
@@ -22,7 +23,11 @@ router.message.middleware((DeviceMiddleware()))
 
 
 @router.message(Command(commands=["start", "help", "payment", "delivery", "legal"]))
-async def process_start_command(message: Message):
+async def process_start_command(message: Message, state: FSMContext):
+    if message.text == '/start':
+        await state.clear()
+        print(f"cleaning state in start command, curr state = ", end='')
+        print(await state.get_state())
     command = message.text.strip('/')
     await message.answer(text=command_handlers[command],
                          reply_markup=static_common_buttons_menu(is_persistent=True))
@@ -91,4 +96,3 @@ async def process_change_device_button(message: Message):
     await message.answer(
         text='Пожалуйста, выберите ваше текущее устройство',
         reply_markup=create_device_selection_kb(user_id))
-

@@ -1,7 +1,7 @@
 from aiogram import Router
 from datetime import datetime
 from aiogram.types import CallbackQuery
-from keyboards.keyboards import create_favorite_goods_kb, create_categories_kb
+from keyboards.user_keyboards import create_favorite_goods_kb, create_categories_kb
 from filters.callbacks import CallbackFactoryAddToFavorite, CallbackFactoryFavoriteProductsSwap, \
     CallbackFactoryGetProductDetailsFromFavorite, CallbackFactoryDeleteFromFavorite
 from middlewares.throttling import TimingMiddleware, IdMiddleware, DeviceMiddleware

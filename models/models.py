@@ -44,8 +44,31 @@ class ItemListedInUserOrders:
     quantity: int
     price: PriceRepresentation
     order_status: str
+    order_id: int = field
 
+@dataclass
+class ItemListedOrdersAdmin:
+    order_id: int
+    order_number: int
+    order_date: str
+    product_name: str
+    quantity: int
+    price: PriceRepresentation
+    order_status: str
 
 class SelectedDevice(Enum):
     DESKTOP = 'Desktop'
     MOBILE_DEVICE = 'Mobile'
+
+
+class CategoryActions(Enum):
+    DELETE = 'delete'
+    ADD = 'add'
+
+
+class AdminStaticKb(Enum):
+    CATEGORY_BUTTON = 'Изменить категории'
+    PRODUCT_BUTTON = 'Изменить данные о продукте'
+    ORDER_BUTTON = 'Изменить статус заказа'
+
+
