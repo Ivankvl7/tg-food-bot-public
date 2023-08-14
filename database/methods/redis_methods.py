@@ -1,11 +1,11 @@
 from redis import Redis
 
 from database.database import RedisCache
-from models.redis_key_schema import RedisKeySchema
 from models.models import SelectedDevice
+from models.redis_key_schema import RedisKeySchema
 
 SINGLE_DAY_INTERVAL = 86400
-TEN_MIN_INTERVAL = 36000
+ONE_HOUR_INTERVAL = 3600
 ONE_WEEK_INTERVAL = 604800
 
 
@@ -13,10 +13,10 @@ def add_to_cart(item_uuid: str | int, user_id: int | str = 593908084) -> None:
     key: str = RedisKeySchema().get_cart_key(user_id)
     client: Redis = RedisCache.get_cache(RedisCache())
     client.hincrby(key, item_uuid)
-    client.expire(key, TEN_MIN_INTERVAL)
+    client.expire(key, ONE_HOUR_INTERVAL)
 
 
-def get_user_cart(user_id: int | str = 593908084) -> dict | None:
+def get_user_cart(user_id: int | str = 593908084) -> dict[str, str] | None:
     key: str = RedisKeySchema().get_cart_key(user_id)
     client: Redis = RedisCache().get_cache()
     cart: dict = client.hgetall(key)
@@ -38,7 +38,7 @@ def remove_item_from_cart(user_id: int, product_uuid: str) -> None:
 def get_product_quantity(user_id: int, product_uuid: str) -> int:
     client: Redis = RedisCache().get_cache()
     key: str = RedisKeySchema().get_cart_key(user_id)
-    quantity = client.hget(key, product_uuid)
+    quantity: str = client.hget(key, product_uuid)
     return int(quantity)
 
 
@@ -61,20 +61,23 @@ def remove_from_favorite(user_id: int, product_uuid: str) -> None:
     client.lrem(key, 1, product_uuid)
 
 
+# remove_from_favorite(593908084, '6ad73606-2653-4001-8a75-7cd317986274a')
+
+
 def get_favorite(user_id: int) -> list:
     client: Redis = RedisCache().get_cache()
     key: str = RedisKeySchema().get_favorite_key(user_id)
     return client.lrange(key, 0, -1)
 
 
-def set_user_profile_attribute(user_id: int, key: str, value: str | int):
+def set_user_profile_attribute(user_id: int, key: str, value: str | int) -> None:
     client: Redis = RedisCache().get_cache()
     hash_key: str = RedisKeySchema().get_user_profile_key(user_id)
     client.hset(hash_key, key, value)
     client.expire(hash_key, SINGLE_DAY_INTERVAL)
 
 
-def get_user_profile(user_id: int) -> dict:
+def get_user_profile(user_id: int) -> dict[str, str]:
     client: Redis = RedisCache().get_cache()
     key: str = RedisKeySchema().get_user_profile_key(user_id)
     user_profile: dict = client.hgetall(key)
@@ -85,7 +88,7 @@ def set_user_device(user_id: int, device: str = SelectedDevice.MOBILE_DEVICE.val
     client: Redis = RedisCache().get_cache()
     key: str = RedisKeySchema().get_selected_device_key(user_id)
     client.set(key, device)
-    client.expire(key, TEN_MIN_INTERVAL)
+    client.expire(key, ONE_HOUR_INTERVAL)
 
 
 def get_user_device(user_id: int) -> str:

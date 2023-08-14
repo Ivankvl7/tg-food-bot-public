@@ -1,20 +1,25 @@
+import os
+import re
 from datetime import datetime
+
 from aiogram import Router, F
 from aiogram.filters import Command
-from keyboards.user_keyboards import static_common_buttons_menu, create_cart_kb
-from lexicon.LEXICON import command_handlers
 from aiogram.filters import Text, StateFilter
-from keyboards.user_keyboards import create_categories_kb, create_favorite_goods_kb, create_device_selection_kb
-from aiogram.types import Message, CallbackQuery
-from utils.utils import send_product_card_cart_item, send_product_card_favorite_items
-from filters.callbacks import CallbackFactoryFinalizeOrder, CallbackFactoryWindowClose, \
-    CallbackFactorTerminateConfirmation
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state
+from aiogram.types import Message, CallbackQuery
+from sqlalchemy import Row
+
+from config_data.config import load_config
 from database.methods.redis_methods import get_user_cart, get_favorite
 from database.methods.rel_db_methods import get_product
+from filters.callbacks import CallbackFactoryFinalizeOrder, CallbackFactoryWindowClose, \
+    CallbackFactorTerminateConfirmation
+from keyboards.user_keyboards import create_categories_kb, create_favorite_goods_kb, create_device_selection_kb
+from keyboards.user_keyboards import static_common_buttons_menu, create_cart_kb
+from lexicon.LEXICON import command_handlers
 from middlewares.throttling import DeviceMiddleware
-from aiogram.fsm.context import FSMContext
+from utils.utils import send_product_card_cart_item, send_product_card_favorite_items
 
 # creating router to register local handlers
 router: Router = Router()
@@ -22,26 +27,19 @@ router.callback_query.middleware(DeviceMiddleware())
 router.message.middleware((DeviceMiddleware()))
 
 
-@router.message(Command(commands=["start", "help", "payment", "delivery", "legal"]))
+@router.message(Command(commands=["start", "help", "payment", "delivery", "legal", "submit_request"]))
 async def process_start_command(message: Message, state: FSMContext):
     if message.text == '/start':
         await state.clear()
-        print(f"cleaning state in start command, curr state = ", end='')
-        print(await state.get_state())
-    command = message.text.strip('/')
+    command: str = message.text.strip('/')
     await message.answer(text=command_handlers[command],
                          reply_markup=static_common_buttons_menu(is_persistent=True))
 
 
 @router.message(Text('Каталог 📕'))
 async def process_catalog_command(update: Message):
-    print('inside catalog')
-    print(update.json())
     await update.answer(text="Ниже представлены доступные категории товаров",
                         reply_markup=create_categories_kb(update))
-
-
-print('catalog processing finished')
 
 
 @router.callback_query(CallbackFactoryWindowClose.filter())
@@ -60,13 +58,13 @@ async def process_confo_termination(callback: CallbackQuery, state: FSMContext):
 
 @router.message(Text('Корзина 🛒'))
 async def process_cart_static_button(update: Message):
-    user_id = update.chat.id
-    user_cart = get_user_cart(user_id)
+    user_id: int = update.chat.id
+    user_cart: dict[str, str] = get_user_cart(user_id)
     if not user_cart:
         return await update.answer('Корзина пуста. Попробуйте сначала что-нибудь туда добавить.',
                                    show_alert=True)
     else:
-        product = get_product(list(user_cart)[0])
+        product: Row = get_product(list(user_cart)[0])
         await send_product_card_cart_item(update=update,
                                           kb=create_cart_kb,
                                           product=product,
@@ -80,11 +78,11 @@ async def process_cart_static_button(update: Message):
 
 @router.message(Text('Избранное ⭐️'))
 async def process_favorite_goods_button(message: Message):
-    user_id = message.chat.id
-    user_favorite = get_favorite(user_id)
+    user_id: int = message.chat.id
+    user_favorite: list[str] = get_favorite(user_id)
     if not user_favorite:
         return await message.answer(text='В избранном еще ничего нету. Попробуйте что-нибудь туда добавить')
-    product = get_product(list(user_favorite)[0])
+    product: Row = get_product(list(user_favorite)[0])
     await send_product_card_favorite_items(update=message,
                                            kb=create_favorite_goods_kb,
                                            product=product)
@@ -92,7 +90,14 @@ async def process_favorite_goods_button(message: Message):
 
 @router.message(Text('Изменить устройство 🖥 🔛📱'))
 async def process_change_device_button(message: Message):
-    user_id = message.chat.id
+    user_id: int = message.chat.id
     await message.answer(
         text='Пожалуйста, выберите ваше текущее устройство',
         reply_markup=create_device_selection_kb(user_id))
+
+
+@router.message(F.text.regexp(re.compile(r'^request *= *.+$')))
+async def submit_request(message: Message):
+    path: str = os.path.dirname(os.path.dirname(os.getcwd())) + '/.env'
+    for manager in load_config(path).tg_bot.shop_managers:
+        await message.forward(chat_id=manager)

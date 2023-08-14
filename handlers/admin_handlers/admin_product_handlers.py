@@ -3,22 +3,30 @@ from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.filters import Text
+from aiogram.filters.state import StateFilter
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
+from sqlalchemy import Row
 
-from database.admin_methods.redis_admin_methods import get_product_attributes, set_product_attribute
+from database.admin_methods.redis_admin_methods import get_product_attributes, set_product_attribute, del_tmp_attrs, \
+    set_tmp_media, get_tmp_media, get_tmp_media_num, del_tmp_media
 from database.admin_methods.rel_bd_admin_methods import get_max_product_id_glob, add_new_product, alter_product_attr, \
-    delete_product
+    delete_product, get_cat_ids
+from database.methods.rel_db_methods import get_category_uuid_by_product_uuid
 from filters.admin_callbacks import CallbackFactoryAddProduct, CallbackFactoryProductAddingTips, \
     CallbackFactoryAddProductFinal, CallbackFactoryGetAttrsState, CallbackFactoryChangeExistingProduct, \
-    CallbackFactoryAlterProductTip, CallbackFactoryDeleteProduct
+    CallbackFactoryAlterProductTip, CallbackFactoryDeleteProduct, CallbackFactoryCatIDs
+from filters.callbacks import CallbackFactoryCategories
+from keyboards.admin_keyboards import single_close_kb
 from keyboards.user_keyboards import create_categories_kb
 from lexicon.A_LEXICON import field_tips, fields_example
 from middlewares.throttling import TimingMiddleware, IdMiddleware, DeviceMiddleware, AdminModeMiddleware
 from models.models import AdminStaticKb
-from aiogram.filters.state import StateFilter
 from states.admin_states import AdminStates
-from keyboards.admin_keyboards import single_close_kb
+from utils.populate_with_pic import populate_media
+from .admin_catalog_handlers import data_listing
+from ..user_handlers.catalog_handlers import process_products_listing
 
 # router to navigate catalog related requests
 router: Router = Router()
@@ -32,7 +40,7 @@ router.message.middleware(AdminModeMiddleware())
 
 @router.message(Text(AdminStaticKb.PRODUCT_BUTTON.value), StateFilter(AdminStates.admin_start))
 async def process_product_change_button(message: Message):
-    user_id = message.chat.id
+    user_id: int = message.chat.id
     await message.answer(text="Выберите действие",
                          reply_markup=InlineKeyboardMarkup(
                              inline_keyboard=[
@@ -53,13 +61,20 @@ def fields_formatting(field_tip: dict):
     return '\n'.join([f"{key} = {value}" for key, value in field_tip.items()])
 
 
+def _initiate_new_attributes(user_id: int):
+    attributes: dict = get_product_attributes(user_id)
+    for key in field_tips:
+        if key not in attributes:
+            set_product_attribute(user_id, key, '----')
+    set_product_attribute(user_id, 'videos', 0)
+    set_product_attribute(user_id, 'photos', 0)
+
 @router.callback_query(CallbackFactoryAddProduct.filter(), StateFilter(AdminStates.admin_start))
 async def process_add_product_start(callback: CallbackQuery):
     user_id: int = callback.message.chat.id
-    attributes = get_product_attributes(user_id)
-    for key in field_tips:
-        if key not in attributes:
-            set_product_attribute(callback.message.chat.id, key, '----')
+    _initiate_new_attributes(user_id)
+    product_id: int = get_max_product_id_glob() + 1
+    set_product_attribute(user_id, 'product_id', product_id)
     await callback.message.answer(
         text='Чтобы добавить новый товар необходимо заполнить ВСЕ поля, представленные ниже\n\n'
              'В одном сообщении нужно отправить один атрибут (его название из таблицы ниже) и его значение в следующем формате:\n' \
@@ -92,6 +107,11 @@ async def process_add_product_start(callback: CallbackQuery):
                         user_id=callback.message.chat.id,
                         action='exm',
                         timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())],
+                [InlineKeyboardButton(
+                    text="ID категорий",
+                    callback_data=CallbackFactoryCatIDs(
+                        user_id=callback.message.chat.id,
+                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())]
             ]
         ),
     )
@@ -108,23 +128,6 @@ async def process_new_product_tips(callback: CallbackQuery, callback_data=Callba
     await callback.answer()
 
 
-@router.message(F.text.regexp(re.compile(r'delete *= *\S{36}')), StateFilter(AdminStates.admin_start))
-async def process_product_deletion(message: Message):
-    _, product_uuid = map(str.strip, message.text.split('='))
-    delete_product(product_uuid)
-    await message.answer(
-        text='Товар успешно удален'
-    )
-
-
-@router.message(F.text.regexp(re.compile(r'[A-Яа-я]\w+ *= *.+')), StateFilter(AdminStates.admin_start))
-async def process_new_product_name(message: Message):
-    attr_name, value = map(str.strip, message.text.split("="))
-    user_id: int = message.chat.id
-    set_product_attribute(user_id, attr_name, value)
-    return await message.answer('Атрибут обновлен')
-
-
 @router.callback_query(CallbackFactoryAddProductFinal.filter(), StateFilter(AdminStates.admin_start))
 async def process_add_product_final(callback: CallbackQuery):
     attrs: dict = get_product_attributes(callback.message.chat.id)
@@ -133,21 +136,39 @@ async def process_add_product_final(callback: CallbackQuery):
         return await callback.answer()
     product_id: int = get_max_product_id_glob() + 1
     add_new_product(
-        product_id=product_id,
+        product_id=attrs['product_id'],
         product_name=attrs['product_name'],
         price=attrs['price'],
         description=attrs['description'],
         category_id=attrs['category_id'],
-        article=attrs['article'],
-        detailed_description=attrs['detailed_description']
     )
+    user_id = callback.message.chat.id
+    media_links_photos = get_tmp_media(user_id, 'photos')
+    media_links_videos = get_tmp_media(user_id, 'videos')
+    for link in media_links_photos:
+        populate_media(
+            link=link,
+            product_id=product_id,
+            type='photos'
+        )
+    for link in media_links_videos:
+        populate_media(
+            link=link,
+            product_id=product_id,
+            type='videos'
+        )
+
     await callback.message.answer('Товар успешно добавлен')
+    del_tmp_attrs(user_id=callback.message.chat.id)
+    del_tmp_media(user_id, 'photos')
+    del_tmp_media(user_id, 'videos')
+    _initiate_new_attributes(user_id)
     await callback.answer()
 
 
 @router.callback_query(CallbackFactoryGetAttrsState.filter(), StateFilter(AdminStates.admin_start))
 async def process_get_current_attrs(callback: CallbackQuery):
-    attrs = get_product_attributes(callback.message.chat.id)
+    attrs: dict = get_product_attributes(callback.message.chat.id)
     await callback.message.answer(
         text=f"{fields_formatting(attrs)}"
     )
@@ -188,12 +209,67 @@ async def process_alter_attr(message: Message):
 
 
 @router.callback_query(CallbackFactoryDeleteProduct.filter(), StateFilter(AdminStates.admin_start))
-async def process_product_delete_tip(callback: CallbackQuery):
+async def process_product_delete_tip(callback: CallbackQuery,
+                                     callback_data: CallbackFactoryDeleteProduct,
+                                     state: FSMContext):
+    product_uuid: str = callback_data.product_uuid
+    category_uuid: int = get_category_uuid_by_product_uuid(product_uuid)
+    delete_product(product_uuid)
+    await callback.answer(
+        text='Товар удален'
+    )
+    await process_products_listing(
+        callback=callback,
+        callback_data=CallbackFactoryCategories(
+            user_id=callback.message.chat.id,
+            uuid=category_uuid,
+            timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')),
+        state=state
+    )
+    await callback.answer()
+
+
+@router.message(F.text.regexp(re.compile(r'photos *= *.+|photos * \d+ *= *.+|videos *= *.+|videos * \d+ *= *.+')))
+async def process_photo_add(message: Message):
+    media_info, link = message.text.split('=', 1)
+    user_id = message.chat.id
+    media = media_info.split()
+    if len(media) > 1:
+        media_type, product_id = media
+
+        product_id = int(product_id.strip())
+        link = link.strip()
+        populate_media(
+            link=link,
+            product_id=product_id,
+            type=media_type
+        )
+
+    else:
+        media_type = media_info.strip()
+        set_tmp_media(user_id=user_id,
+                      link=link,
+                      content_type=media_type)
+    media_num = get_tmp_media_num(user_id, media_type)
+    set_product_attribute(user_id, media_type, media_num)
+    return await message.answer('Медиа успешно добавлено')
+
+
+@router.message(F.text.regexp(re.compile(r'[A-Яа-я]\w+ *= *.+')), StateFilter(AdminStates.admin_start))
+async def process_new_product_name(message: Message):
+    attr_name, value = map(str.strip, message.text.split("="))
+    if attr_name not in field_tips:
+        return await message.answer('Неверная команда')
+    user_id: int = message.chat.id
+    set_product_attribute(user_id, attr_name, value)
+    return await message.answer('Атрибут обновлен')
+
+
+@router.callback_query(CallbackFactoryCatIDs.filter(), StateFilter(AdminStates.admin_start))
+async def provide_cat_ids(callback: CallbackQuery):
+    table: list[Row] = get_cat_ids()
     await callback.message.answer(
-        text="Для удаления товара воспользуйтесь командой: \n"
-             "delete=<product_uuid>\n\n"
-             "например:\n"
-             "delete=832ecc97-1435",
+        text=data_listing(table, 'category_id', 'category_name'),
         reply_markup=single_close_kb(callback)
     )
     await callback.answer()

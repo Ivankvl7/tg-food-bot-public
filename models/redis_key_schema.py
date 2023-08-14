@@ -1,13 +1,13 @@
-from typing import Callable
+from typing import Callable, Any
 
 DEFAULT_KEY_PREFIX = "tg_jw_shop_01"
 
 
-def prefixed_key(f: Callable):
+def prefixed_key(f: Callable) -> Callable:
     """Prefixes any given key with default app prefix"""
 
-    def prefixed_method(self, *args, **kwargs):
-        key = f(self, *args, **kwargs)
+    def prefixed_method(self, *args, **kwargs) -> str:
+        key: Any = f(self, *args, **kwargs)
         return f"{self.prefix}:{key}"
 
     return prefixed_method
@@ -39,4 +39,6 @@ class RedisKeySchema:
     def get_new_product_attributes_key(self, user_id: int):
         return f"new_product_admin:{user_id}"
 
-
+    @prefixed_key
+    def get_new_product_media(self, user_id: int, content_type: str = 'photos'):
+        return f"new_product_{content_type}:{user_id}"

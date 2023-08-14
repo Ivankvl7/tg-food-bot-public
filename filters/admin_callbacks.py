@@ -1,5 +1,4 @@
 from aiogram.filters.callback_data import CallbackData
-from typing import Callable
 
 
 class CallbackFactoryAddCategory(CallbackData, prefix='add_c'):
@@ -54,8 +53,9 @@ class CallbackFactoryAvailableFields(CallbackData, prefix='av_fs'):
     timestamp: str
 
 
-class CallbackFactoryDeleteProduct(CallbackData, prefix='del_pr'):
+class CallbackFactoryDeleteProduct(CallbackData, prefix='dp'):
     user_id: int
+    product_uuid: str
     timestamp: str
 
 
@@ -65,5 +65,10 @@ class CallbackFactoryActiveOrders(CallbackData, prefix='act_ord'):
 
 
 class CallbackFactoryStatusList(CallbackData, prefix='st_l'):
+    user_id: int
+    timestamp: str
+
+
+class CallbackFactoryCatIDs(CallbackData, prefix='cat_ids'):
     user_id: int
     timestamp: str

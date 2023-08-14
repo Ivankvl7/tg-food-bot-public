@@ -1,15 +1,9 @@
 import uuid
-from database.database import DBInstance
-from sqlalchemy import Table, select, Select, MetaData, Result, Row, func, Insert, insert, Update, update, join, Delete, \
+
+from sqlalchemy import Table, select, Select, MetaData, Row, func, Insert, insert, Update, update, Delete, \
     delete
-from sqlalchemy.orm import Session, Query
-from typing import Sequence, Any
-from lexicon.LEXICON import product_columns_mapper
-from sqlalchemy.sql.expression import Subquery, CTE
-from models.models import CartItem, PriceRepresentation
-from datetime import datetime
-import random
-from ..methods.rel_db_methods import get_max_product_id_by_cat_id
+
+from database.database import DBInstance
 
 
 def get_max_product_id_glob() -> int:
@@ -21,7 +15,7 @@ def get_max_product_id_glob() -> int:
     return data
 
 
-def get_existing_categories() -> list[(str, str)]:
+def get_existing_categories() -> list[Row]:
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
         table: Table = Table('categories', metadata)
@@ -68,11 +62,8 @@ def add_new_product(
         price: str,
         description: str,
         category_id: int,
-        article: int,
-        detailed_description: str = None,
-        front_photo: str = None,
-        additional_photos: list[str] = None,
-        additional_videos: list[str] = None) -> None:
+        detailed_description: str = None
+):
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
         table: Table = Table('products', metadata)
@@ -82,7 +73,6 @@ def add_new_product(
             price=price,
             description=description,
             category_id=category_id,
-            article=article,
             product_uuid=uuid.uuid4(),
             detailed_description=detailed_description
         )
@@ -120,14 +110,6 @@ def delete_product(product_uuid: str) -> None:
         session.commit()
 
 
-def add_photo_link(link: str) -> None:
-    pass
-
-
-def add_video_link(link: str) -> None:
-    pass
-
-
 def get_order_status_table() -> list[Row]:
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
@@ -136,3 +118,11 @@ def get_order_status_table() -> list[Row]:
         res = list(session.execute(query).all())
     return res
 
+
+def get_cat_ids() -> list[Row]:
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        table: Table = Table('categories', metadata)
+        query: Select = select(table.c.category_id, table.c.category_name)
+        res = list(session.execute(query).all())
+    return res

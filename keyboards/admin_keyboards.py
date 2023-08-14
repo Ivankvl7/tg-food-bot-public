@@ -1,24 +1,18 @@
-from aiogram.utils.keyboard import KeyboardButton, ReplyKeyboardBuilder, InlineKeyboardButton, InlineKeyboardBuilder, \
-    ReplyKeyboardMarkup, InlineKeyboardMarkup
-from lexicon.LEXICON import static_keyboard
-from aiogram.types import Message, CallbackQuery
 from datetime import datetime
-from database.methods.rel_db_methods import get_categories, get_first_product, get_previous_product_uuid, \
-    get_next_product_uuid, get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id, \
-    get_product
-from typing import Sequence
-from aiogram.fsm.context import FSMContext
-from database.methods.redis_methods import get_user_cart, add_to_cart, get_favorite
-from models.models import SelectedDevice
+
+from aiogram.types import Message, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardBuilder, \
+    InlineKeyboardMarkup
+from sqlalchemy import Row
+
+from database.admin_methods.rel_bd_admin_methods import get_existing_categories
+from database.methods.rel_db_methods import get_first_product
 from filters.admin_callbacks import CallbackFactoryAddCategory, CallbackFactoryDelCategory, CallbackFactoryDeletedCat, \
     CallbackFactoryAlterProductTip, CallbackFactoryProductAddingTips, CallbackFactoryDeleteProduct, \
     CallbackFactoryActiveOrders, CallbackFactoryStatusList
-from models.models import CategoryActions
-from database.admin_methods.rel_bd_admin_methods import get_existing_categories
-from filters.callbacks import CallbackFactoryProductDetails, CallbackFactoryStepBack, CallbackFactoryWindowClose
-from lexicon.A_LEXICON import field_tips
-from keyboards.user_keyboards import create_pagination
 from filters.callbacks import CallbackFactoryGoods
+from filters.callbacks import CallbackFactoryProductDetails, CallbackFactoryStepBack, CallbackFactoryWindowClose
+from keyboards.user_keyboards import create_pagination
 
 
 def create_admin_categories_actions_kb(message: Message):
@@ -43,8 +37,8 @@ def create_admin_categories_actions_kb(message: Message):
 
 def create_categories_deletion_kb(callback: CallbackQuery):
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
-    categories = get_existing_categories()
-    buttons = [InlineKeyboardButton(
+    categories: list[Row] = get_existing_categories()
+    buttons: list[InlineKeyboardButton] = [InlineKeyboardButton(
         text=item.category_name,
         callback_data=CallbackFactoryDeletedCat(
             user_id=callback.message.chat.id,
@@ -60,10 +54,9 @@ def product_action_bar_admin(
         update: CallbackQuery,
         category_uuid: int | str = None,
         product_uuid: str = None,
-        **keyboard_options):
+):
     if category_uuid is not None:
         product_uuid = get_first_product(category_uuid=category_uuid).product_uuid
-    user_id = update.message.chat.id
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
     buttons: list[InlineKeyboardButton] = [
         InlineKeyboardButton(
@@ -80,9 +73,10 @@ def product_action_bar_admin(
                 action='tip',
                 timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack()),
         InlineKeyboardButton(
-            text=f"Подсказка по удалению товара",
+            text=f"Удалить товар",
             callback_data=CallbackFactoryDeleteProduct(
                 user_id=update.from_user.id,
+                product_uuid=product_uuid,
                 timestamp=datetime.utcnow().strftime(
                     '%d-%m-%y %H-%M')
             ).pack()),
@@ -95,13 +89,6 @@ def product_action_bar_admin(
                     '%d-%m-%y %H-%M')
             ).pack()),
     ]
-    # buttons.extend([InlineKeyboardButton(
-    #     text=f"Изменить {value}",
-    #     callback_data=CallbackFactoryAlterProductAttr(
-    #         user_id=user_id,
-    #         attr=key,
-    #         timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack()) for key, value in field_tips.items()])
-
     buttons.extend(create_pagination(update=update,
                                      product_uuid=product_uuid))
     buttons.append(InlineKeyboardButton(
@@ -124,8 +111,7 @@ def create_detalisation_kb_admin(callback_data: CallbackFactoryProductDetails) -
                     user_id=callback_data.user_id,
                     uuid=callback_data.uuid,
                     timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
-                ).pack()),
-            ]])
+                ).pack())]])
 
 
 def single_close_kb(callback: CallbackQuery) -> InlineKeyboardMarkup:

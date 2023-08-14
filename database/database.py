@@ -1,8 +1,10 @@
+import os
+
+import redis
 from sqlalchemy import create_engine, Engine, MetaData, Connection
 from sqlalchemy.orm import Session
+
 from config_data.config import load_redis_config
-import redis
-import os
 
 
 class DBInstance:

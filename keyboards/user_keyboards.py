@@ -1,26 +1,30 @@
+from datetime import datetime
+from typing import Sequence
+
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import KeyboardButton, ReplyKeyboardBuilder, InlineKeyboardButton, InlineKeyboardBuilder, \
     ReplyKeyboardMarkup, InlineKeyboardMarkup
-from lexicon.LEXICON import static_keyboard
-from aiogram.types import Message, CallbackQuery
-from datetime import datetime
+from sqlalchemy import Row
+
+from database.methods.redis_methods import get_user_cart, get_favorite
+from database.methods.rel_db_methods import get_categories, get_first_product, get_previous_product_uuid, \
+    get_next_product_uuid, get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id, \
+    get_product
 from filters.callbacks import CallbackFactoryCategories, CallbackFactoryProductDetails, CallbackFactoryGoods, \
     CallbackFactoryStepBack, CallbackFactoryAddToCart, CallbackFactoryAddToFavorite, CallbackFactoryFinalizeOrder, \
     CallbackFactoryCartProductSwap, CallbackFactoryQuantityChange, CallbackFactoryProductDetailsFromCart, \
     CallbackFactoryFavoriteProductsSwap, CallbackFactoryWindowClose, CallbackFactoryDeleteFromFavorite, \
     CallbackFactoryOrderConfirmation, CallbackFactorTerminateConfirmation, CallbackFactoryQuickConfirmation, \
     CallbackFactoryGetProductDetailsFromFavorite, CallbackFactoryDeviceSelection
-from database.methods.rel_db_methods import get_categories, get_first_product, get_previous_product_uuid, \
-    get_next_product_uuid, get_max_product_id, get_category_uuid_by_product_uuid, get_current_product_num_id, \
-    get_product
-from typing import Sequence
-from aiogram.fsm.context import FSMContext
-from database.methods.redis_methods import get_user_cart, add_to_cart, get_favorite
+from lexicon.LEXICON import static_keyboard
 from models.models import SelectedDevice, AdminStaticKb
 
 
 def static_common_buttons_menu(admin_mode=False, **keyboard_options) -> ReplyKeyboardMarkup:
     # kb selection depending on user status
-    kb_button_names: dict = static_keyboard if not admin_mode else {item.name: item.value for item in AdminStaticKb}
+    kb_button_names: dict[str, str] = static_keyboard if not admin_mode else {item.name: item.value for item in
+                                                                              AdminStaticKb}
 
     # creating buttons for persistent kb
     buttons: list[KeyboardButton] = [KeyboardButton(text=kb_button_names[key]) for key in kb_button_names]
@@ -36,11 +40,9 @@ def static_common_buttons_menu(admin_mode=False, **keyboard_options) -> ReplyKey
 
 def create_categories_kb(update: CallbackQuery | Message, **kwargs):
     if isinstance(update, CallbackQuery):
-        user_id = update.from_user.id
-        print('inside create_categories_kb; update=CallbackQuery; user_id = update.from_user.id')
+        user_id: int = update.from_user.id
     else:
-        user_id = update.from_user.id
-        print('inside create_categories_kb; update = Message; user_id = update.from_user.id')
+        user_id: int = update.from_user.id
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
     categories: Sequence = get_categories()
     kb.add(*[InlineKeyboardButton(text=row.category_name,
@@ -50,11 +52,6 @@ def create_categories_kb(update: CallbackQuery | Message, **kwargs):
                                       timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
                                   ).pack())
              for row in categories])
-    # kb.add(*[InlineKeyboardButton(text='Назад',
-    #                               callback_data=CallbackFactoryStartPage(
-    #                                   user_id=user_id,
-    #                                   timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')
-    #                               ).pack())])
     kb.adjust(1, repeat=True)
     return kb.as_markup(**kwargs)
 
@@ -85,7 +82,7 @@ def create_pagination(update: CallbackQuery,
 def product_action_bar(update: CallbackQuery,
                        category_uuid: int | str = None,
                        product_uuid: str = None,
-                       **keyboard_options):
+                       ):
     if category_uuid is not None:
         product_uuid = get_first_product(category_uuid=category_uuid).product_uuid
 
@@ -136,9 +133,9 @@ def product_action_bar(update: CallbackQuery,
 
 
 def create_detalisation_kb(callback_data: CallbackFactoryProductDetails, admin_mode=False):
-    buttons: list = []
+    buttons: list[list[InlineKeyboardButton]] = []
     if not admin_mode:
-        buttons: list = [[InlineKeyboardButton(
+        buttons: list[list[InlineKeyboardButton]] = [[InlineKeyboardButton(
             text='Добавить в корзину',
             callback_data=CallbackFactoryAddToCart(
                 user_id=callback_data.user_id,
@@ -172,13 +169,13 @@ def create_detalisation_kb(callback_data: CallbackFactoryProductDetails, admin_m
 
 def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | CallbackFactoryCartProductSwap):
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
-    user_id = callback_data.user_id
-    index = int(index)
-    user_cart = get_user_cart(user_id)
-    product_uuid = list(user_cart.keys())[index]
-    left_index = index - 1
-    right_index = index + 1
-    quantity = user_cart[product_uuid]
+    user_id: int = callback_data.user_id
+    index: int = int(index)
+    user_cart: dict[str, str] = get_user_cart(user_id)
+    product_uuid: str = list(user_cart.keys())[index]
+    left_index: int = index - 1
+    right_index: int = index + 1
+    quantity: int = int(user_cart[product_uuid])
 
     button00 = InlineKeyboardButton(text='Перейти к подтверждению заказа',
                                     callback_data=CallbackFactoryOrderConfirmation(
@@ -240,17 +237,17 @@ def create_cart_kb(index: int, callback_data: CallbackFactoryFinalizeOrder | Cal
 
 def create_favorite_goods_kb(update: Message | CallbackQuery, index: int | str):
     if isinstance(index, str):
-        index = int(index)
+        index: int = int(index)
     kb: InlineKeyboardBuilder = InlineKeyboardBuilder()
     if isinstance(update, CallbackQuery):
-        user_id = update.message.chat.id
+        user_id: int = update.message.chat.id
     else:
-        user_id = update.chat.id
-    user_favorite = list(get_favorite(user_id))
+        user_id: int = update.chat.id
+    user_favorite: list[str] = list(get_favorite(user_id))
 
-    left_index = index - 1
-    right_index = index + 1
-    product = get_product(user_favorite[index])
+    left_index: int = index - 1
+    right_index: int = index + 1
+    product: Row = get_product(user_favorite[index])
     button00 = InlineKeyboardButton(text='Подробнее о товаре',
                                     callback_data=CallbackFactoryGetProductDetailsFromFavorite(
                                         user_id=user_id,
@@ -304,22 +301,22 @@ def close_window_button(text: str,
                         state: FSMContext | None = None,
                         quick_confo: bool = False) -> InlineKeyboardMarkup:
     if isinstance(update, CallbackQuery):
-        user_id = update.message.chat.id
+        user_id: int = update.message.chat.id
     else:
-        user_id = update.chat.id
+        user_id: int = update.chat.id
     if state:
-        callback_data = CallbackFactorTerminateConfirmation(
+        callback_data: str = CallbackFactorTerminateConfirmation(
             user_id=user_id,
             timestamp=datetime.utcnow().strftime(
                 '%d-%m-%y %H-%M')
         ).pack()
     else:
-        callback_data = CallbackFactoryWindowClose(
+        callback_data: str = CallbackFactoryWindowClose(
             user_id=user_id,
             timestamp=datetime.utcnow().strftime(
                 '%d-%m-%y %H-%M')
         ).pack()
-    kb = [[InlineKeyboardButton(
+    kb: list[list[InlineKeyboardButton]] = [[InlineKeyboardButton(
         text=text,
         callback_data=callback_data)]]
     if quick_confo is True:

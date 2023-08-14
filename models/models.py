@@ -1,14 +1,13 @@
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 
 
 class PriceRepresentation:
-    def __init__(self, num, unit):
-        self.unit = unit
-        self.num = num
+    def __init__(self, num: int | float, unit: str) -> None:
+        self.num: float | int = num
+        self.unit: str = unit
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.num} {self.unit}"
 
 
@@ -34,8 +33,6 @@ class UserProfile:
     email: str | None = field(default=None)
 
 
-# print(UserProfile().__dict__)
-
 @dataclass
 class ItemListedInUserOrders:
     order_number: int
@@ -45,6 +42,7 @@ class ItemListedInUserOrders:
     price: PriceRepresentation
     order_status: str
     order_id: int = field
+
 
 @dataclass
 class ItemListedOrdersAdmin:
@@ -56,19 +54,18 @@ class ItemListedOrdersAdmin:
     price: PriceRepresentation
     order_status: str
 
+
 class SelectedDevice(Enum):
-    DESKTOP = 'Desktop'
-    MOBILE_DEVICE = 'Mobile'
+    DESKTOP: str = 'Desktop'
+    MOBILE_DEVICE: str = 'Mobile'
 
 
 class CategoryActions(Enum):
-    DELETE = 'delete'
-    ADD = 'add'
+    DELETE: str = 'delete'
+    ADD: str = 'add'
 
 
 class AdminStaticKb(Enum):
-    CATEGORY_BUTTON = 'Изменить категории'
-    PRODUCT_BUTTON = 'Изменить данные о продукте'
-    ORDER_BUTTON = 'Изменить статус заказа'
-
-
+    CATEGORY_BUTTON: str = 'Изменить категории'
+    PRODUCT_BUTTON: str = 'Изменить данные о продукте'
+    ORDER_BUTTON: str = 'Изменить статус заказа'

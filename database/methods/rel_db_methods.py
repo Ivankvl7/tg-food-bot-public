@@ -1,17 +1,18 @@
-from database.database import DBInstance
-from sqlalchemy import Table, select, Select, MetaData, Result, Row, func, Insert, insert, Update, update, join
-from sqlalchemy.orm import Session, Query
-from typing import Sequence, Any
-from lexicon.LEXICON import product_columns_mapper
-from sqlalchemy.sql.expression import Subquery, CTE
-from models.models import CartItem, PriceRepresentation
-from datetime import datetime
 import random
+from datetime import datetime
+from typing import Sequence, Any
+
+from sqlalchemy import Table, select, Select, MetaData, Result, Row, func, Insert, insert, Update, update, join
+from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import Subquery, CTE
+
+from database.database import DBInstance
+from models.models import CartItem, PriceRepresentation
 
 
 def categories_products_cte() -> CTE:
     with DBInstance.get_session():
-        metadata = DBInstance.get_metadata()
+        metadata: MetaData = DBInstance.get_metadata()
         categories = Table('categories', metadata)
         products: Table = Table('products', metadata)
         cte: CTE = select(products, categories).join_from(products, categories).cte()
@@ -20,8 +21,8 @@ def categories_products_cte() -> CTE:
 
 def get_categories() -> Sequence:
     with DBInstance.get_session() as session:
-        metadata = DBInstance.get_metadata()
-        categories = Table('categories', metadata)
+        metadata: MetaData = DBInstance.get_metadata()
+        categories: Table = Table('categories', metadata)
         select_query: Select = select(categories)
         data: Result = session.execute(select_query)
     return data.all()
@@ -37,8 +38,8 @@ def get_product(product_uuid: str | int) -> Row:
 
 def get_first_product(category_uuid: int | str) -> Row:
     with DBInstance.get_session() as session:
-        metadata = DBInstance.get_metadata()
-        categories = Table('categories', metadata)
+        metadata: MetaData = DBInstance.get_metadata()
+        categories: Table = Table('categories', metadata)
         products: Table = Table('products', metadata)
         query: Subquery = select(
             products.c.product_id,
@@ -48,7 +49,7 @@ def get_first_product(category_uuid: int | str) -> Row:
             products.c.description,
             products.c.product_uuid).join_from(products, categories).where(
             categories.c.category_uuid == category_uuid).subquery()
-        min_id: int = int(session.execute(func.min(query.c.product_id)).scalar())
+        min_id: int = session.execute(func.min(query.c.product_id)).scalar()
         res: Row = session.execute(select(query).where(query.c.product_id == min_id)).first()
     return res
 
@@ -90,7 +91,7 @@ def products_filtered_by_category_and_numbered(product_uuid: str | int) -> CTE:
 
 def get_current_product_num_id(product_uuid: str | int) -> str | int:
     with DBInstance.get_session() as session:
-        cte = products_filtered_by_category_and_numbered(product_uuid)
+        cte: CTE = products_filtered_by_category_and_numbered(product_uuid)
         query: Select = select(cte.c.num_id).where(cte.c.product_uuid == product_uuid)
         data: Result = session.execute(query)
     return data.scalar()
@@ -119,21 +120,6 @@ def get_previous_product_uuid(current_product_uuid: str | int) -> str | int | No
     return res.scalar()
 
 
-# data1 = get_categories()
-# print(data1)
-# data2 = get_first_product('55b9124f-7a1b-4d76-a729-98fc53010545')
-# print(data2)
-# data3 = get_max_product_id('55b9124f-7a1b-4d76-a729-98fc53010545')
-# print(data3)
-# data4 = get_category_uuid_by_product_uuid('b4b238c0-9d29-4a73-9fbc-e36862a2dfd8')
-# print(data4)
-# data5 = get_current_product_num_id('88ce6711-89c5-4c42-9ae1-e7032e09201b')
-# print(data5)
-# data6 = get_next_product_uuid('777812e4-8380-4252-bb51-9decd2e495b7')
-# print(data6)
-# data7 = get_previous_product_uuid('88ce6711-89c5-4c42-9ae1-e7032e09201b')
-# print(data7)
-
 def get_static_videos(product_uuid: int | str) -> list[str]:
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
@@ -143,10 +129,6 @@ def get_static_videos(product_uuid: int | str) -> list[str]:
             products.c.product_uuid == product_uuid)
         data: Result = session.execute(query)
     return [row.video_url for row in data]
-
-
-data8 = get_static_videos('2fe926de-b676-49f1-8e12-00325ed080c3')
-print(data8)
 
 
 def get_category(category_uuid: str | int):
@@ -171,8 +153,6 @@ def select_last_or_first_in_category_or_none(product_uuid: str | int, which_one=
     return res.one_or_none()
 
 
-# print(select_last_or_first_in_category_or_none('cf9f9f38-d7a1-4a72-8fb4-7bc19f5c41dd', which_one='last'))
-
 def get_user_orders(user_id: str | int, admin_mode=False):
     with DBInstance.get_session() as session:
         metadata: MetaData = DBInstance.get_metadata()
@@ -180,13 +160,12 @@ def get_user_orders(user_id: str | int, admin_mode=False):
         users: Table = Table('users', metadata)
         products: Table = Table('products', metadata)
         order_status: Table = Table('order_status', metadata)
-        if admin_mode:
-            query: Select = select('*').select_from(
-                join(orders, products).join(users).join(order_status))
         query: Select = select('*').select_from(
             join(orders, products).join(users).join(order_status)).where(users.c.telegram_id == user_id,
                                                                          order_status.c.order_status_id < 4)
-
+        if admin_mode:
+            query: Select = select('*').select_from(
+                join(orders, products).join(users).join(order_status)).where(order_status.c.order_status_id < 4)
         data: Sequence[Row[tuple | Any]] = session.execute(query).all()
     return data
 
@@ -323,3 +302,12 @@ def get_user_fields(user_tg_id: int):
         query: Select = select(users).where(users.c.user_id == get_user_id_by_tg_id(user_tg_id))
         data: Result = session.execute(query)
     return data
+
+
+def get_product_id_by_uuid(product_uuid: str) -> int:
+    with DBInstance.get_session() as session:
+        metadata: MetaData = DBInstance.get_metadata()
+        products: Table = Table('products', metadata)
+        query: Select = select(products.c.product_id).where(products.c.product_uuid == product_uuid)
+        data: Result = session.execute(query)
+    return data.scalar()

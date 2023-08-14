@@ -1,14 +1,12 @@
-from datetime import datetime
 from typing import Callable, Awaitable, Any
-from aiogram.types import CallbackQuery, Message
+
 from aiogram import BaseMiddleware
+from aiogram.types import CallbackQuery, Message
 from aiogram.types import TelegramObject
-from utils.utils import time_validity_check
+
 from database.methods.redis_methods import get_user_device, set_user_device
-from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
-from models.models import SelectedDevice
-from filters.callbacks import CallbackFactoryDeviceSelection
 from keyboards.user_keyboards import create_device_selection_kb
+from utils.utils import time_validity_check
 
 
 class TimingMiddleware(BaseMiddleware):
@@ -42,16 +40,17 @@ class DeviceMiddleware(BaseMiddleware):
             event: CallbackQuery | Message,
             data: dict[str, Any]) -> Any:
         if isinstance(event, CallbackQuery):
-            update = event.message
+            update: Message = event.message
         else:
-            update = event
-        user_id = update.chat.id
-        user_device = get_user_device(user_id)
+            update: Message = event
+        user_id: int = update.chat.id
+        user_device: str = get_user_device(user_id)
         if not user_device:
             set_user_device(user_id)
             return await update.answer(
                 text="Прежде чем продолжить, пожалуйста, выберите тип вашего устройства. Это необходимо для вывода информации в подходящем "
-                     "для вашего устройства формате",
+                     "для вашего устройства формате\n"
+                     "Для продолжения нажмите /start",
                 reply_markup=create_device_selection_kb(user_id)
             )
         result = await handler(event, data)
@@ -66,11 +65,11 @@ class AdminModeMiddleware(BaseMiddleware):
             data: dict[str, Any]) -> Any:
         from handlers.admin_handlers.initiate_admin_mode import get_admin_ids
         if isinstance(event, CallbackQuery):
-            user_id = event.message.chat.id
-            update = event.message
+            user_id: int = event.message.chat.id
+            update: Message = event.message
         else:
-            user_id = event.chat.id
-            update = event
+            user_id: int = event.chat.id
+            update: Message = event
         if user_id not in get_admin_ids():
             return await update.answer('В доступе отказано')
         result = await handler(event, data)
