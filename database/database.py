@@ -1,10 +1,11 @@
-import os
-
+import boto3
 import redis
+from botocore.config import Config
 from sqlalchemy import create_engine, Engine, MetaData, Connection
 from sqlalchemy.orm import Session
+from config_data.config import load_config, PATH
 
-from config_data.config import load_redis_config
+CONFIG = load_config(PATH)
 
 
 class DBInstance:
@@ -13,8 +14,7 @@ class DBInstance:
     @classmethod
     def check_engine(cls) -> None:
         if not cls.__engine:
-            cls.__engine = create_engine(
-                "postgresql+psycopg2://postgres:V5a3n9o3l1o7x777$%^&*@localhost/JewelryShopBotDB")
+            cls.__engine = create_engine(CONFIG.db.local_engine)
 
     @classmethod
     def get_connection(cls) -> Connection:
@@ -35,18 +35,11 @@ class DBInstance:
 
 
 class RedisCache:
-    __config = None
-    __env_path = os.path.dirname(os.getcwd()) + '/.env'
-
-    def __new__(cls, *args, **kwargs):
-        if cls.__config is None:
-            cls.__config = load_redis_config(cls.__env_path)
-        return super().__new__(cls)
 
     def get_cache(self):
-        return redis.Redis(host=self.__class__.__config.host,
-                           port=self.__class__.__config.port,
-                           username=self.__class__.__config.user,
-                           password=self.__class__.__config.password,
+        return redis.Redis(host=CONFIG.redis.host,
+                           port=CONFIG.redis.port,
+                           username=CONFIG.redis.user,
+                           password=CONFIG.redis.password,
                            decode_responses=True)
 
