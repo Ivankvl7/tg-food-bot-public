@@ -1,66 +1,74 @@
-import boto3
-from boto3.resources.factory import ServiceResource
-from botocore.config import Config
-from database.database import CONFIG, PATH
+import os
+
+from database.database import CONFIG
 from b2sdk.v2 import B2Api
 import requests
 from requests import Response
+from models.models import StaticContentType
+from lexicon.LEXICON import static_extension
 
 
 class B2BInstance:
-
-    @classmethod
-    def get_b2b_resource(cls):
-        return boto3.resource(
-            service_name=CONFIG.b2b.service_name,
-            endpoint_url=CONFIG.b2b.endpoint,
-            aws_access_key_id=CONFIG.b2b.aws_access_key_id,
-            aws_secret_access_key=CONFIG.b2b.aws_secret_access_key,
-            config=Config(
-                signature_version='s3v4'))
-
-    @classmethod
-    def get_b2b_client(cls):
-        return boto3.client(
-            service_name=CONFIG.b2b.service_name,
-            endpoint_url=CONFIG.b2b.endpoint,
-            aws_access_key_id=CONFIG.b2b.aws_access_key_id,
-            aws_secret_access_key=CONFIG.b2b.aws_secret_access_key,
-            config=CONFIG.b2b.config)
-
-    @classmethod
-    def get_media_content(cls, url: str) -> str:
-        pass
-
-    @classmethod
-    def create_destination_path(cls, product_id: int) -> str:
-        pass
-
-    @classmethod
-    def upload_file(cls, destination: str, file: str):
-        pass
-
-
-class B2BInstance:
-
-    def __init__(self) -> None:
+    def __init__(self, bucket_name: str = CONFIG.b2b.bucket_name) -> None:
         self.b2_api: B2Api = B2Api()
+        self.bucket_name = bucket_name
+        self.authorize_account()
+        self.bucket = self.get_bucket_api()
 
     def authorize_account(self) -> None:
         self.b2_api.authorize_account('production',
                                       CONFIG.b2b.aws_access_key_id,
                                       CONFIG.b2b.aws_secret_access_key)
 
-    def get_media_content(self, url: str) -> bytes:
+    def get_bucket_api(self):
+        return self.b2_api.get_bucket_by_name(self.bucket_name)
+
+    @staticmethod
+    def get_media_content(url: str) -> bytes:
         response: Response = requests.get(url)
         if response.status_code == 200:
             return response.content
         else:
             raise ConnectionError('Не удалось установить соединение. Попробуйте другую ссылку')
 
-    def create_destination_path(self, product_id: int, media_type: str = 'photos') -> str:
-        return f"{media_type}"
+    def get_destination_path(self, product_id: int,
+                             media_type: StaticContentType = StaticContentType.IMAGE) -> str:
+        return f"{media_type.value}/{product_id}/"
 
+    def upload_file(self,
+                    url: str,
+                    product_id: int,
+                    file_id: int = None,
+                    media_type: StaticContentType = StaticContentType.IMAGE) -> None:
+        data_bytes = self.get_media_content(url)
+        file_name = self.generate_media_name(product_id=product_id,
+                                             media_type=media_type,
+                                             file_id=file_id)
+        uploaded_file = self.bucket.upload_bytes(data_bytes=data_bytes,
+                                                 file_name=file_name)
 
-    def upload_file(self, destination: str, file: str):
-        pass
+    def generate_media_name(self, product_id: int,
+                            media_type: StaticContentType = StaticContentType.IMAGE,
+                            file_id: int = None) -> str:
+        file_list = self.bucket.ls(self.get_destination_path(product_id=product_id,
+                                                             media_type=media_type))
+        if file_id:
+            id_postfix = file_id
+        else:
+            id_postfix = len(list(file_list)) + 1
+        file_path = self.get_destination_path(product_id=product_id,
+                                              media_type=media_type)
+        return f"{file_path}{media_type.value}{product_id}_{id_postfix}{static_extension[media_type]}"
+
+    def download_media(self, product_id: int,
+                       file_id: int,
+                       media_type: StaticContentType = StaticContentType.IMAGE
+                       ):
+        file_name = self.generate_media_name(product_id=product_id,
+                                             media_type=media_type,
+                                             file_id=file_id)
+        print(file_name)
+        response = self.bucket.download_file_by_name(file_name)
+        response.save_to(os.path.join(os.getcwd(),
+                                      '/static',
+                                      f"{media_type.value}{product_id}_{file_id}{static_extension[media_type]}")

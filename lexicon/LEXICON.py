@@ -1,3 +1,5 @@
+from models.models import StaticContentType
+
 product_action_buttons: dict[str, str] = {'add_to_cart': 'Добавить в корзину',
                                           'proceed_with_order': 'Оформить заказ',
                                           'backward': '<<',
@@ -85,3 +87,10 @@ order_listing_mapper: dict[str, int | str] = {
     'price': 'Общая стоимость',
     'order_status': 'Статус заказа'
 }
+
+static_extension: dict[StaticContentType, str] = {
+    StaticContentType.IMAGE: '.jpg',
+    StaticContentType.VIDEO: '.mp4'
+}
+
+

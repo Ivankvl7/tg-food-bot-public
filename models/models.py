@@ -69,3 +69,9 @@ class AdminStaticKb(Enum):
     CATEGORY_BUTTON: str = 'Изменить категории'
     PRODUCT_BUTTON: str = 'Изменить данные о продукте'
     ORDER_BUTTON: str = 'Изменить статус заказа'
+
+
+class StaticContentType(Enum):
+    IMAGE: str = 'image'
+    VIDEO: str = 'video'
+

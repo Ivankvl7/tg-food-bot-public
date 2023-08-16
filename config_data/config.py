@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 from environs import Env
 from botocore.config import Config
 
-PATH = os.path.join(os.getcwd() + '.env')
+PATH = os.getcwd() + '/.env'
+print(PATH)
 
 
 @dataclass
@@ -36,6 +37,7 @@ class B2BConfig:
     endpoint: str
     aws_access_key_id: str | int
     aws_secret_access_key: str | int
+    bucket_name: str
     service_name: str = field(default='s3')
     config: Config = field(default=Config(signature_version='s3v4'))
 
@@ -71,4 +73,5 @@ def load_config(path: str | None) -> Config:
                   b2b=B2BConfig(
                       endpoint=env('ENDPOINT'),
                       aws_access_key_id=env('KEY_ID_B2B'),
-                      aws_secret_access_key=env('APPLICATION_KEY_B2B')))
+                      aws_secret_access_key=env('APPLICATION_KEY_B2B'),
+                      bucket_name=env('BUCKET_NAME')))
