@@ -126,3 +126,4 @@ def get_cat_ids() -> list[Row]:
         query: Select = select(table.c.category_id, table.c.category_name)
         res = list(session.execute(query).all())
     return res
+

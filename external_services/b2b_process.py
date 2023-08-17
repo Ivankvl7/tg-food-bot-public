@@ -2,9 +2,10 @@ import os
 
 from database.database import CONFIG
 from b2sdk.v2 import B2Api
+from b2sdk.transfer.inbound.downloaded_file import DownloadedFile
 import requests
 from requests import Response
-from models.models import StaticContentType
+from models.models import StaticContentType, TmpNames
 from lexicon.LEXICON import static_extension
 
 
@@ -47,14 +48,21 @@ class B2BInstance:
         uploaded_file = self.bucket.upload_bytes(data_bytes=data_bytes,
                                                  file_name=file_name)
 
+    def get_static_data(self,
+                        product_id: int,
+                        media_type: StaticContentType = StaticContentType.IMAGE):
+        return self.bucket.ls(self.get_destination_path(product_id=product_id,
+                                                        media_type=media_type))
+
     def generate_media_name(self, product_id: int,
                             media_type: StaticContentType = StaticContentType.IMAGE,
                             file_id: int = None) -> str:
-        file_list = self.bucket.ls(self.get_destination_path(product_id=product_id,
-                                                             media_type=media_type))
+
         if file_id:
             id_postfix = file_id
         else:
+            file_list = self.get_static_data(product_id=product_id,
+                                             media_type=media_type)
             id_postfix = len(list(file_list)) + 1
         file_path = self.get_destination_path(product_id=product_id,
                                               media_type=media_type)
@@ -63,12 +71,10 @@ class B2BInstance:
     def download_media(self, product_id: int,
                        file_id: int,
                        media_type: StaticContentType = StaticContentType.IMAGE
-                       ):
+                       ) -> DownloadedFile:
         file_name = self.generate_media_name(product_id=product_id,
                                              media_type=media_type,
                                              file_id=file_id)
         print(file_name)
-        response = self.bucket.download_file_by_name(file_name)
-        response.save_to(os.path.join(os.getcwd(),
-                                      '/static',
-                                      f"{media_type.value}{product_id}_{file_id}{static_extension[media_type]}")
+        downloaded_file = self.bucket.download_file_by_name(file_name)
+        return downloaded_file

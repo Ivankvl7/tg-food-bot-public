@@ -74,4 +74,14 @@ class AdminStaticKb(Enum):
 class StaticContentType(Enum):
     IMAGE: str = 'image'
     VIDEO: str = 'video'
+    MEDIA_GROUP: str = 'media_group'
 
+
+class StaticContentExtensions(Enum):
+    IMAGE: str = '.jpg'
+    VIDEO: str = '.mp4'
+
+
+class TmpNames(Enum):
+    IMAGE: str = f'image_tmp{StaticContentExtensions[StaticContentType.IMAGE.name].value}'
+    VIDEO: str = f'image_tmp{StaticContentExtensions[StaticContentExtensions.VIDEO.name].value}'

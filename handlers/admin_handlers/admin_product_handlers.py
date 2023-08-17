@@ -8,6 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import Row
+from lexicon.LEXICON import input_media_type_mapper
 
 from database.admin_methods.redis_admin_methods import get_product_attributes, set_product_attribute, del_tmp_attrs, \
     set_tmp_media, get_tmp_media, get_tmp_media_num, del_tmp_media
@@ -22,9 +23,10 @@ from keyboards.admin_keyboards import single_close_kb
 from keyboards.user_keyboards import create_categories_kb
 from lexicon.A_LEXICON import field_tips, fields_example
 from middlewares.throttling import TimingMiddleware, IdMiddleware, DeviceMiddleware, AdminModeMiddleware
-from models.models import AdminStaticKb
+from models.models import AdminStaticKb, StaticContentType
 from states.admin_states import AdminStates
 from utils.populate_with_pic import populate_media
+from external_services.b2b_process import B2BInstance
 from .admin_catalog_handlers import data_listing
 from ..user_handlers.catalog_handlers import process_products_listing
 
@@ -66,8 +68,9 @@ def _initiate_new_attributes(user_id: int):
     for key in field_tips:
         if key not in attributes:
             set_product_attribute(user_id, key, '----')
-    set_product_attribute(user_id, 'videos', 0)
-    set_product_attribute(user_id, 'photos', 0)
+    set_product_attribute(user_id, StaticContentType.IMAGE.value, 0)
+    set_product_attribute(user_id, StaticContentType.VIDEO.value, 0)
+
 
 @router.callback_query(CallbackFactoryAddProduct.filter(), StateFilter(AdminStates.admin_start))
 async def process_add_product_start(callback: CallbackQuery):
@@ -143,25 +146,25 @@ async def process_add_product_final(callback: CallbackQuery):
         category_id=attrs['category_id'],
     )
     user_id = callback.message.chat.id
-    media_links_photos = get_tmp_media(user_id, 'photos')
-    media_links_videos = get_tmp_media(user_id, 'videos')
+    media_links_photos = get_tmp_media(user_id, StaticContentType.IMAGE)
+    media_links_videos = get_tmp_media(user_id, StaticContentType.VIDEO)
     for link in media_links_photos:
         populate_media(
             link=link,
             product_id=product_id,
-            type='photos'
+            media_type=StaticContentType.IMAGE
         )
     for link in media_links_videos:
         populate_media(
             link=link,
             product_id=product_id,
-            type='videos'
+            media_type=StaticContentType.VIDEO
         )
 
     await callback.message.answer('Товар успешно добавлен')
     del_tmp_attrs(user_id=callback.message.chat.id)
-    del_tmp_media(user_id, 'photos')
-    del_tmp_media(user_id, 'videos')
+    del_tmp_media(user_id, StaticContentType.IMAGE)
+    del_tmp_media(user_id, StaticContentType.VIDEO)
     _initiate_new_attributes(user_id)
     await callback.answer()
 
@@ -229,7 +232,7 @@ async def process_product_delete_tip(callback: CallbackQuery,
     await callback.answer()
 
 
-@router.message(F.text.regexp(re.compile(r'photos *= *.+|photos * \d+ *= *.+|videos *= *.+|videos * \d+ *= *.+')))
+@router.message(F.text.regexp(re.compile(r'image *= *.+|video * \d+ *= *.+')))
 async def process_photo_add(message: Message):
     media_info, link = message.text.split('=', 1)
     user_id = message.chat.id
@@ -242,15 +245,15 @@ async def process_photo_add(message: Message):
         populate_media(
             link=link,
             product_id=product_id,
-            type=media_type
+            media_type=input_media_type_mapper[media_type]
         )
 
     else:
         media_type = media_info.strip()
         set_tmp_media(user_id=user_id,
                       link=link,
-                      content_type=media_type)
-    media_num = get_tmp_media_num(user_id, media_type)
+                      content_type=input_media_type_mapper[media_type])
+    media_num = get_tmp_media_num(user_id, input_media_type_mapper[media_type])
     set_product_attribute(user_id, media_type, media_num)
     return await message.answer('Медиа успешно добавлено')
 

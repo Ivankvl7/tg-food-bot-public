@@ -14,6 +14,7 @@ from lexicon.LEXICON import product_columns_mapper
 from middlewares.throttling import TimingMiddleware, IdMiddleware, DeviceMiddleware
 from utils.utils import get_file
 from utils.utils import send_product_card_cart_item
+from models.models import StaticContentType
 
 # router to navigate catalog related requests
 router: Router = Router()
@@ -52,17 +53,17 @@ async def process_finalize_order_button(update: CallbackQuery,
     await update.answer()
 
 
-def get_media_group(uuids_seq: dict | list, index: int):
+def get_media_group(uuids_seq: dict | list, index: int, user_id: int):
     product_uuids: list = list(uuids_seq)
     product: Row = get_product(product_uuids[index])
     media_group_photos = [
         InputMediaPhoto(caption='\n'.join([f"<b>{value}</b>: {getattr(product, key)}" for key, value in
                                            product_columns_mapper.items()]),
                         parse_mode='HTML',
-                        media=get_file(product)),
+                        media=get_file(product, user_id)),
     ]
     media_group_videos = [
-        InputMediaVideo(media=get_file(product, content_type='videos'))]
+        InputMediaVideo(media=get_file(product, user_id, content_type=StaticContentType.VIDEO))]
     return media_group_photos, media_group_videos
 
 
@@ -79,7 +80,8 @@ async def process_product_details_from_cart_button(callback: CallbackQuery,
         index: int = callback_data.index - 1
 
     media_group_photos, media_group_videos = get_media_group(uuids_seq=user_cart,
-                                                             index=index)
+                                                             index=index,
+                                                             user_id=user_id)
 
     await callback.message.answer_media_group(media=media_group_videos)
     await callback.message.answer_media_group(media=media_group_photos)

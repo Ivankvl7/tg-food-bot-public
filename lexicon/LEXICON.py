@@ -93,4 +93,7 @@ static_extension: dict[StaticContentType, str] = {
     StaticContentType.VIDEO: '.mp4'
 }
 
-
+input_media_type_mapper: dict[str, StaticContentType] = {
+    'image': StaticContentType.IMAGE,
+    'video': StaticContentType.VIDEO
+}

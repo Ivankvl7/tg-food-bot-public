@@ -7,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InputMediaPhoto, InputMediaVideo, Message
 from aiogram.utils.keyboard import InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import Row
-
+from models.models import StaticContentType
 from database.methods.redis_methods import get_user_device
 from database.methods.rel_db_methods import get_product, get_user_orders, get_first_product
 from filters.callbacks import CallbackFactoryCategories, CallbackFactoryStepBack, CallbackFactoryGoods, \
@@ -86,6 +86,7 @@ async def process_pagination(callback: CallbackQuery,
 async def process_detalization_button(callback: CallbackQuery,
                                       callback_data: CallbackFactoryProductDetails,
                                       state: FSMContext):
+    user_id: int = callback.message.chat.id
     product: Row = get_product(product_uuid=callback_data.uuid)
     admin_mode: bool = False
     if await state.get_state() == AdminStates.admin_start:
@@ -95,11 +96,11 @@ async def process_detalization_button(callback: CallbackQuery,
         InputMediaPhoto(caption='\n'.join([f"<b>{value}</b>: {getattr(product, key)}" for key, value in
                                            product_columns_mapper.items()]),
                         parse_mode='HTML',
-                        media=get_file(product)),
+                        media=get_file(product, user_id)),
     ]
-    if check_media_existance(product.product_id, 'videos'):
+    if check_media_existance(product.product_id, StaticContentType.VIDEO):
         media_group_videos: list[InputMediaVideo] = [
-            InputMediaVideo(media=get_file(product, "videos"))
+            InputMediaVideo(media=get_file(product, user_id, StaticContentType.VIDEO))
         ]
         await callback.message.answer_media_group(media=media_group_videos)
     await callback.message.answer_media_group(media=media_group_photos)

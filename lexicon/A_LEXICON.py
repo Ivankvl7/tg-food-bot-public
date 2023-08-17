@@ -1,10 +1,12 @@
+from models.models import StaticContentType
+
 field_tips: dict[str, str] = {
     'product_name': '<Наименование продукта> (до 50 симв.)',
     'price': '<Цена> (Число)',
     'description': '<Описание> (до 255 симв.)',
     'category_id': '<Номер категории>',
-    'photos': 'Ссылка на фото, как минимум 1 ссылка обязательна',
-    'videos': 'Ссылка на видео, необязательно'
+    StaticContentType.IMAGE.value: 'Ссылка на фото, как минимум 1 ссылка обязательна',
+    StaticContentType.VIDEO.value: 'Ссылка на видео, необязательно'
 
 }
 

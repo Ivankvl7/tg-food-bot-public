@@ -1,5 +1,6 @@
 from aiogram import Router
 from aiogram.types import CallbackQuery, Message
+from utils.utils import get_file_b2b
 
 from database.methods.redis_methods import set_user_device
 from filters.callbacks import CallbackFactoryDeviceSelection
@@ -23,6 +24,9 @@ async def process_device_selection(callback: CallbackQuery,
 async def processing_non_defined_requests(callback: CallbackQuery):
     await callback.answer('Кнопка неактивна')
 
+
 @router.message()
 async def processing_non_defined_requests(message: Message):
+    await message.answer_photo(get_file_b2b(product_id=1,
+                                            file_id=3))
     await message.reply(text='Извините, я не знаю такой команды')
