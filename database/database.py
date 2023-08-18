@@ -1,6 +1,4 @@
-import boto3
 import redis
-from botocore.config import Config
 from sqlalchemy import create_engine, Engine, MetaData, Connection
 from sqlalchemy.orm import Session
 from config_data.config import load_config, PATH
@@ -36,10 +34,10 @@ class DBInstance:
 
 class RedisCache:
 
-    def get_cache(self):
+    @staticmethod
+    def get_cache():
         return redis.Redis(host=CONFIG.redis.host,
                            port=CONFIG.redis.port,
                            username=CONFIG.redis.user,
                            password=CONFIG.redis.password,
                            decode_responses=True)
-

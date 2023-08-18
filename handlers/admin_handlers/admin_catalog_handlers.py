@@ -1,11 +1,9 @@
 import re
-
 from aiogram import Router, F
 from aiogram.filters import Text, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import Row
-
 from database.admin_methods.rel_bd_admin_methods import delete_category, add_new_category, \
     change_order_status, get_order_status_table
 from filters.admin_callbacks import CallbackFactoryAddCategory, CallbackFactoryDelCategory, CallbackFactoryDeletedCat, \
@@ -17,7 +15,7 @@ from models.models import AdminStaticKb
 from states.admin_states import AdminStates
 from ..user_handlers.catalog_handlers import process_my_orders_button
 
-# router to navigate catalog related requests
+# router to navigate catalog related requests from admin panel
 router: Router = Router()
 router.callback_query.middleware(TimingMiddleware())
 router.callback_query.middleware(IdMiddleware())

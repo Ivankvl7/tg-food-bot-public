@@ -4,15 +4,15 @@ from environs import Env
 from botocore.config import Config
 
 PATH = os.getcwd() + '/.env'
-print(PATH)
 
 
 @dataclass
 class DatabaseConfig:
-    database: str  # bd name
-    db_host: str  # bd URL
-    db_user: str  # bd username
-    db_password: str  # bd pass
+    """Postgres config"""
+    database: str
+    db_host: str
+    db_user: str
+    db_password: str
     local_engine: str
     remote_engine: str
 

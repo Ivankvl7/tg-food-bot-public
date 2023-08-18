@@ -1,11 +1,9 @@
 import random
 from datetime import datetime
 from typing import Sequence, Any
-
 from sqlalchemy import Table, select, Select, MetaData, Result, Row, func, Insert, insert, Update, update, join
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Subquery, CTE
-
 from database.database import DBInstance
 from models.models import CartItem, PriceRepresentation
 

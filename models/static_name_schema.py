@@ -4,7 +4,7 @@ import os
 
 
 class StaticNameSchema:
-
+    """Class provides file naming and paths for saving static data in server file system"""
     def __init__(self,
                  media_type: StaticContentType = StaticContentType.IMAGE):
         self.media_type = media_type

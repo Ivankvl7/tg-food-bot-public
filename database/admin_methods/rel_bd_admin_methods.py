@@ -1,8 +1,6 @@
 import uuid
-
 from sqlalchemy import Table, select, Select, MetaData, Row, func, Insert, insert, Update, update, Delete, \
     delete
-
 from database.database import DBInstance
 
 

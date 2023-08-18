@@ -1,6 +1,5 @@
 import re
 from datetime import datetime
-
 from aiogram import Router, F
 from aiogram.filters import Text
 from aiogram.filters.state import StateFilter
@@ -9,7 +8,6 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import Row
 from lexicon.LEXICON import input_media_type_mapper
-
 from database.admin_methods.redis_admin_methods import get_product_attributes, set_product_attribute, del_tmp_attrs, \
     set_tmp_media, get_tmp_media, get_tmp_media_num, del_tmp_media
 from database.admin_methods.rel_bd_admin_methods import get_max_product_id_glob, add_new_product, alter_product_attr, \
@@ -26,11 +24,10 @@ from middlewares.throttling import TimingMiddleware, IdMiddleware, DeviceMiddlew
 from models.models import AdminStaticKb, StaticContentType
 from states.admin_states import AdminStates
 from utils.populate_with_pic import populate_media
-from external_services.b2b_process import B2BInstance
 from .admin_catalog_handlers import data_listing
 from ..user_handlers.catalog_handlers import process_products_listing
 
-# router to navigate catalog related requests
+# router to navigate products related requests from admin panel
 router: Router = Router()
 router.callback_query.middleware(TimingMiddleware())
 router.callback_query.middleware(IdMiddleware())

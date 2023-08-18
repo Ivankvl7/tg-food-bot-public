@@ -5,7 +5,7 @@ from models.redis_key_schema import RedisKeySchema
 from ..methods.redis_methods import ONE_HOUR_INTERVAL
 
 
-def get_product_attributes(user_id: int) -> dict:
+def get_product_attributes(user_id: int) -> dict[str, str]:
     client: Redis = RedisCache().get_cache()
     key: str = RedisKeySchema().get_new_product_attributes_key(user_id)
     return client.hgetall(key)

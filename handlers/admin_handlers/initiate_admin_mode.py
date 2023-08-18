@@ -2,14 +2,12 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-
-from config_data.config import Config
-from config_data.config import load_config
+from config_data.config import Config, load_config
 from keyboards.user_keyboards import static_common_buttons_menu
 from middlewares.throttling import TimingMiddleware, IdMiddleware
 from states.admin_states import AdminStates
 
-# router to navigate catalog related requests
+
 router: Router = Router()
 router.callback_query.middleware(TimingMiddleware())
 router.callback_query.middleware(IdMiddleware())

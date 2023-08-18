@@ -10,6 +10,7 @@ from utils.utils import time_validity_check
 
 
 class TimingMiddleware(BaseMiddleware):
+    """Checks if keyboard has been expired. Default time is 5 minutes"""
     async def __call__(
             self,
             handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -22,6 +23,7 @@ class TimingMiddleware(BaseMiddleware):
 
 
 class IdMiddleware(BaseMiddleware):
+    """Drops a user request if chat.id and user.id are inconsistent"""
     async def __call__(
             self,
             handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -34,6 +36,7 @@ class IdMiddleware(BaseMiddleware):
 
 
 class DeviceMiddleware(BaseMiddleware):
+    """Offers a user to choose device type which will determine text messages formatting"""
     async def __call__(
             self,
             handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -58,6 +61,7 @@ class DeviceMiddleware(BaseMiddleware):
 
 
 class AdminModeMiddleware(BaseMiddleware):
+    """Filters admin requests"""
     async def __call__(
             self,
             handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
