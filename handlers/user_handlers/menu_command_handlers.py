@@ -1,7 +1,6 @@
 import os
 import re
 from datetime import datetime
-
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.filters import Text, StateFilter
@@ -9,7 +8,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy import Row
-
 from config_data.config import load_config
 from database.methods.redis_methods import get_user_cart, get_favorite
 from database.methods.rel_db_methods import get_product
@@ -96,8 +94,4 @@ async def process_change_device_button(message: Message):
         reply_markup=create_device_selection_kb(user_id))
 
 
-@router.message(F.text.regexp(re.compile(r'^request *= *.+$')))
-async def submit_request(message: Message):
-    path: str = os.path.dirname(os.path.dirname(os.getcwd())) + '/.env'
-    for manager in load_config(path).tg_bot.shop_managers:
-        await message.forward(chat_id=manager)
+

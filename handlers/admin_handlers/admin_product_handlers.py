@@ -1,30 +1,30 @@
 import re
 from datetime import datetime
+
 from aiogram import Router, F
 from aiogram.filters import Text
 from aiogram.filters.state import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
-from sqlalchemy import Row
-from lexicon.LEXICON import input_media_type_mapper
+
 from database.admin_methods.redis_admin_methods import get_product_attributes, set_product_attribute, del_tmp_attrs, \
     set_tmp_media, get_tmp_media, get_tmp_media_num, del_tmp_media
 from database.admin_methods.rel_bd_admin_methods import get_max_product_id_glob, add_new_product, alter_product_attr, \
-    delete_product, get_cat_ids
+    delete_product
 from database.methods.rel_db_methods import get_category_uuid_by_product_uuid
 from filters.admin_callbacks import CallbackFactoryAddProduct, CallbackFactoryProductAddingTips, \
     CallbackFactoryAddProductFinal, CallbackFactoryGetAttrsState, CallbackFactoryChangeExistingProduct, \
-    CallbackFactoryAlterProductTip, CallbackFactoryDeleteProduct, CallbackFactoryCatIDs
+    CallbackFactoryAlterProductTip, CallbackFactoryDeleteProduct
 from filters.callbacks import CallbackFactoryCategories
 from keyboards.admin_keyboards import single_close_kb
 from keyboards.user_keyboards import create_categories_kb
 from lexicon.A_LEXICON import field_tips, fields_example
+from lexicon.LEXICON import input_media_type_mapper
 from middlewares.throttling import TimingMiddleware, IdMiddleware, DeviceMiddleware, AdminModeMiddleware
 from models.models import AdminStaticKb, StaticContentType
 from states.admin_states import AdminStates
 from utils.populate_with_pic import populate_media
-from .admin_catalog_handlers import data_listing
 from ..user_handlers.catalog_handlers import process_products_listing
 
 # router to navigate products related requests from admin panel
@@ -68,53 +68,6 @@ def _initiate_new_attributes(user_id: int):
     set_product_attribute(user_id, StaticContentType.IMAGE.value, 0)
     set_product_attribute(user_id, StaticContentType.VIDEO.value, 0)
 
-
-@router.callback_query(CallbackFactoryAddProduct.filter(), StateFilter(AdminStates.admin_start))
-async def process_add_product_start(callback: CallbackQuery):
-    user_id: int = callback.message.chat.id
-    _initiate_new_attributes(user_id)
-    product_id: int = get_max_product_id_glob() + 1
-    set_product_attribute(user_id, 'product_id', product_id)
-    await callback.message.answer(
-        text='Чтобы добавить новый товар необходимо заполнить ВСЕ поля, представленные ниже\n\n'
-             'В одном сообщении нужно отправить один атрибут (его название из таблицы ниже) и его значение в следующем формате:\n' \
-             'название_атрибута> = <значение атрибута>\n'
-             'Прогресс сохраняется, на каждом этапе вы видите заполненные атрибуты\n\n'
-             'Прогресс обнуляется после добавления продукта в таблицу\n\n'
-             'Текущий прогресс: \n'
-             f"{fields_formatting(get_product_attributes(user_id))}",
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(
-                    text="Добавить товар",
-                    callback_data=CallbackFactoryAddProductFinal(
-                        user_id=callback.message.chat.id,
-                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())],
-                [InlineKeyboardButton(
-                    text="Текущие атрибуты",
-                    callback_data=CallbackFactoryGetAttrsState(
-                        user_id=callback.message.chat.id,
-                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())],
-                [InlineKeyboardButton(
-                    text="Подсказки по заполнению полей",
-                    callback_data=CallbackFactoryProductAddingTips(
-                        user_id=callback.message.chat.id,
-                        action='tip',
-                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())],
-                [InlineKeyboardButton(
-                    text="Примеры заполнения полей",
-                    callback_data=CallbackFactoryProductAddingTips(
-                        user_id=callback.message.chat.id,
-                        action='exm',
-                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())],
-                [InlineKeyboardButton(
-                    text="ID категорий",
-                    callback_data=CallbackFactoryCatIDs(
-                        user_id=callback.message.chat.id,
-                        timestamp=datetime.utcnow().strftime('%d-%m-%y %H-%M')).pack())]
-            ]
-        ),
-    )
 
 
 @router.callback_query(CallbackFactoryProductAddingTips.filter(), StateFilter(AdminStates.admin_start))
@@ -255,21 +208,3 @@ async def process_photo_add(message: Message):
     return await message.answer('Медиа успешно добавлено')
 
 
-@router.message(F.text.regexp(re.compile(r'[A-Яа-я]\w+ *= *.+')), StateFilter(AdminStates.admin_start))
-async def process_new_product_name(message: Message):
-    attr_name, value = map(str.strip, message.text.split("="))
-    if attr_name not in field_tips:
-        return await message.answer('Неверная команда')
-    user_id: int = message.chat.id
-    set_product_attribute(user_id, attr_name, value)
-    return await message.answer('Атрибут обновлен')
-
-
-@router.callback_query(CallbackFactoryCatIDs.filter(), StateFilter(AdminStates.admin_start))
-async def provide_cat_ids(callback: CallbackQuery):
-    table: list[Row] = get_cat_ids()
-    await callback.message.answer(
-        text=data_listing(table, 'category_id', 'category_name'),
-        reply_markup=single_close_kb(callback)
-    )
-    await callback.answer()

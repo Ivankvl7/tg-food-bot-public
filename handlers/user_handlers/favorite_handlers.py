@@ -82,25 +82,3 @@ async def process_product_details_from_favorite_button(callback: CallbackQuery,
 
     await callback.answer()
 
-
-@router.callback_query(CallbackFactoryDeleteFromFavorite.filter())
-async def process_del_from_favorite_button(callback: CallbackQuery, callback_data: CallbackFactoryDeleteFromFavorite):
-    index = int(callback_data.index)
-    user_id: int = callback.message.chat.id
-    user_favorite: list[str] = get_favorite(user_id)
-    if not user_favorite:
-        return await callback.answer(text='В избранном ничего нет')
-    if len(user_favorite) == 1:
-        remove_from_favorite(user_id, user_favorite[index])
-        await callback.answer(text='В избранном больше ничего нет')
-        await callback.message.answer(text="Ниже представлены доступные категории товаров",
-                                      reply_markup=create_categories_kb(callback))
-    else:
-        remove_from_favorite(user_id, user_favorite[index])
-        user_favorite: list[str] = get_favorite(user_id)
-        product: Row = get_product(user_favorite[0])
-        await send_product_card_favorite_items(update=callback,
-                                               kb=create_favorite_goods_kb,
-                                               product=product
-                                               )
-        await callback.answer()
