@@ -1,1 +1,1 @@
-The code is provided only for demonstrational purposes, part of it is intentionally missing.
+The code is provided only for demonstration purposes, part of it is intentionally missing.
